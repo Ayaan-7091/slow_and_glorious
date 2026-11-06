@@ -1,6 +1,6 @@
-# 🛺 3D Auto-Rickshaw Arcade Prototype (Level 1)
+# 🛺 Tuk-Tuk Runner - 3D Indian Street Circuit (Sprint 2)
 
-A clean, beginner-friendly Level 1 prototype of an Indian Auto-Rickshaw (Tuk-Tuk) 3D arcade driving game built with **Vite** and **vanilla Three.js** (pure WebGL primitives, zero external 3D model files, and zero external physics libraries).
+An arcade 3D time-trial racing game prototype featuring an authentic Indian Auto-Rickshaw, built with **Vite** and **vanilla Three.js** (zero external physics engines and zero external 3D model files).
 
 ---
 
@@ -15,7 +15,7 @@ A clean, beginner-friendly Level 1 prototype of an Indian Auto-Rickshaw (Tuk-Tuk
    ```bash
    npm run dev
    ```
-   Open the printed URL (typically `http://localhost:5173`) in your web browser.
+   Open the printed URL (typically `http://localhost:5173`) in your browser.
 
 3. **Build for production:**
    ```bash
@@ -32,58 +32,57 @@ A clean, beginner-friendly Level 1 prototype of an Indian Auto-Rickshaw (Tuk-Tuk
 | **W** or **↑ Up Arrow** | Accelerate (Gas) |
 | **S** or **↓ Down Arrow** | Brake / Reverse |
 | **A** / **D** or **←** / **→** | Steer Left / Right |
-| **SPACEBAR** | Power Drift (Slips wide & emits sparks) |
-| **R** | Reset / Respawn Rickshaw & Cones |
+| **SPACEBAR** | Power Drift (Slips wide & **charges the Nitro Boost Meter**) |
+| **SHIFT** | ☕ **Garam Chai Nitro Boost** (Burst of top speed + FOV zoom + cyan exhaust flames) |
+| **H** | 📯 **Double-Beep Horn** (Synthesized dual-tone Indian auto horn) |
+| **R** | ↺ **Respawn** (Resets to the last passed checkpoint facing along the track) |
+| **M** | 🔊 **Toggle Mute / Unmute** |
 
 ### 📱 Mobile & Touch Devices
-- **Bottom-Left:** `◀` and `▶` buttons for steering.
-- **Bottom-Right:** `GAS` (accelerate), `BRAKE` (brake/reverse), and `DRIFT` (hold to slide).
-- Supports full multi-touch so you can hold Gas while steering and drifting simultaneously.
+- **Bottom-Left:**
+  - `◀` and `▶` buttons for steering.
+  - `📯 HORN` button.
+- **Bottom-Right:**
+  - `GAS` (accelerate) & `BRAKE` (brake/reverse).
+  - `DRIFT` (hold to slide around corners and charge nitro).
+  - `⚡ NITRO` (activate Garam Chai Nitro Boost).
+- Full multi-touch support: hold Gas + Nitro while steering and tapping Horn or Drift.
 
 ---
 
-## 🏗️ Architecture & Beginner-Friendly Code Tour
+## 🏁 New Sprint 2 Upgrades
 
-```
-├── index.html              # Fullscreen canvas, HUD (speedometer, gear, drift badge), and touch overlay
-├── style.css               # Warm sunset glassmorphism UI & responsive touch buttons
-├── package.json            # Vite + Three.js scripts
-└── src/
-    ├── main.js             # Main game loop, scene/lighting, physics, camera chase, & HUD updates
-    ├── createRickshaw.js   # Procedural auto-rickshaw group (3 wheels, yellow chassis, canopy, handlebar, blob shadow)
-    ├── createCones.js      # 20 colorful slalom & track traffic cones with arcade bounce physics
-    ├── particles.js        # Spark particle system emitted from rear wheels during drifts
-    └── controls.js         # Unified input manager handling keyboard + mobile pointer events
-```
+### 1. Closed-Loop Indian Street Circuit (`src/createTrack.js`)
+- **Procedural Ribbon Geometry:** Uses `THREE.CatmullRomCurve3` to generate a 14m wide asphalt racing circuit with 5-6 corners (sweepers, technical chicanes, hairpins, and a main straight).
+- **Curbstones & Barriers:** Alternating red-and-white arcade curbstones on inner/outer edges with safety guardrail posts.
+- **Roadside Indian Props:**
+  - Colorful roadside **Chai Stalls ("Tapri")** with corrugated roofs, kettle, benches, and warm glowing lanterns.
+  - Stylized low-poly **Palm Trees**, **Banyan Trees**, and vintage **Streetlamps**.
+- **Hazard Cones with Dynamic Airborne Physics:** Cones placed on corner apexes; when struck, they fly high into the air with spinning angular momentum and bounce back down.
+- **Track Boundary Collision:** Bounces the rickshaw back onto the track and reduces speed when scraping barriers.
 
-### 1. Scene, Sunset Lighting & Blob Shadow
-- **Warm Sunset Sky & Fog:** `THREE.Scene.background` with matching exponential distance fog (`THREE.FogExp2`) to blend the horizon into a golden-hour dusk.
-- **Directional Sunlight:** Warm angled sun (`#ffb066`) casting soft real-time shadows (`THREE.PCFSoftShadowMap`).
-- **Ground & Grid:** Large dark asphalt ground with a colorful `THREE.GridHelper` in sunset orange to give immediate visual speed and trajectory feedback.
-- **Blob Shadow:** A custom radial gradient oval pinned directly under the rickshaw chassis at `y = 0.02` to give solid visual grounding without performance hitches.
+### 2. Checkpoints & Lap Timing System
+- **Gates:** 1 Grand Festive Indian Start/Finish Arch + 4 glowing cyan semi-transparent checkpoint gates.
+- **Anti-Cheat Sequential Order:** Tracks gate progression sequentially (Gate 0 -> 1 -> 2 -> 3 -> 4 -> 0).
+- **Dark-Glass HUD Widget:**
+  - `LAP: 1 / 3`
+  - `TIME: MM:SS.SS`
+  - `BEST: MM:SS.SS` (persisted in browser `localStorage`).
+- **Checkpoint Respawn:** Pressing `R` or tapping `Respawn` resets the rickshaw to the last passed checkpoint, facing forward along the track spline with zero speed.
 
-### 2. Procedural Indian Auto-Rickshaw (`createRickshaw.js`)
-Modeled entirely from Three.js primitives (`BoxGeometry`, `CylinderGeometry`, `PlaneGeometry`):
-- **Iconic Yellow & Green Livery:** Yellow body panels (`#f5b000`) and emerald green lower trim (`#0c6833`).
-- **Black Curved Canopy Roof:** Supported by 6 slender metal pillars with a curved crown.
-- **Transparent Glass Windshield:** Semi-transparent blue-tinted windshield with single wiper.
-- **Interior Details:** Driver bench, passenger cabin bench, steering column, handlebars with rubber grips, and the classic right-side fare meter.
-- **3 Dynamic Wheels:**
-  - Front wheel inside a steerable fork assembly that pivots with user steering.
-  - Left & Right rear wheels positioned under the passenger chassis.
-  - All 3 wheels visually spin around their axle based on linear driving speed.
+### 3. Drift-to-Boost ("Garam Chai Nitro") Mechanic
+- **Drift Charging:** Holding a drift around corners charges the Garam Chai Nitro meter up to 100%.
+- **Nitro Boost Activation:** Pressing **Shift** (or the mobile **⚡ NITRO** button) consumes nitro to:
+  - Increase top speed from 25 km/h to 38 km/h.
+  - Add +24 acceleration boost.
+  - Emit bright cyan/electric blue exhaust flame particles (`src/particles.js`).
+  - Dynamically widen the camera FOV from 55° to 72° using smooth `lerp` for high-speed sensation.
 
-### 3. Arcade Driving & 3-Wheel Tilt Dynamics
-- **Motion Integration:** Delta-time (`dt`) based forward/reverse velocity, acceleration, braking, and natural rolling friction.
-- **Steering only when moving:** Turns proportional to current speed (and reverses steering logic naturally when backing up).
-- **Power Drift Mechanic:** When pressing **Spacebar** or holding **Drift**, tire grip loosens, lateral slip velocity builds up, turn rate increases, and fiery yellow/orange square spark particles shower backwards from both rear wheels.
-- **Dynamic 3-Wheeler Tilt:**
-  - **Chassis Roll (`rotation.z`):** Outward centrifugal lean when cornering at speed, simulating the characteristic high-center-of-gravity feel of a 3-wheeler.
-  - **Chassis Pitch (`rotation.x`):** Nose squats during acceleration and dips forward under hard braking.
-  - **Subtle Road Wobble:** High-speed vibration for visceral feedback.
-
-### 4. Smooth Chase Camera
-- Positioned behind the vehicle using trigonometric heading vectors (`sin(heading)`, `cos(heading)`).
-- **Speed Pull-back:** As velocity increases, the camera dynamically pulls back further and slightly higher to enhance the sensation of speed.
-- **Frame-rate independent lerp:** Camera position and look-at targets smoothly interpolate towards target positions using exponential damping (`1 - Math.exp(-k * dt)`).
-
+### 4. Synthesized Web Audio API (`src/audio.js`)
+*Zero external MP3s or WAV files needed!* Real-time synthesis:
+- **2-Stroke Engine Hum:** Sawtooth oscillator + low-pass filter dynamically pitch-shifting with speed and throttle.
+- **Iconic Double-Beep Horn:** Dual-tone (440Hz + 554Hz major 3rd) rapid-fire beep ("PEEP-PEEP!").
+- **Checkpoint & Lap Chimes:** Sparkling ascending musical arpeggios on gate pass and lap completion.
+- **Nitro Boost Ignition:** Ascending whoosh and combustion roar.
+- **Impact Sounds:** Hollow plastic impact for traffic cones and metallic crunch for barriers.
+- **Mute Toggle:** Click the top-right button or press `M`.

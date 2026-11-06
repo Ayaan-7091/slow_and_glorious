@@ -197,6 +197,13 @@ export function createRickshaw() {
   rearBumper.position.set(0, 0.3, -1.36);
   tiltGroup.add(rearBumper);
 
+  // Chrome exhaust pipe at rear left (emits nitro flames!)
+  const exhaustGeo = new THREE.CylinderGeometry(0.048, 0.048, 0.36, 10);
+  const exhaustPipe = new THREE.Mesh(exhaustGeo, chromeMat);
+  exhaustPipe.rotation.x = Math.PI / 2;
+  exhaustPipe.position.set(-0.45, 0.26, -1.38);
+  tiltGroup.add(exhaustPipe);
+
   // -------------------------------------------------------------
   // 2. FRONT NOSE / COWL (Tapered front profile)
   // -------------------------------------------------------------
@@ -519,6 +526,7 @@ export function createRickshaw() {
     rearLeftWheel: rearLeftWheel,
     rearRightWheel: rearRightWheel,
     blobShadow: blobShadow,
+    exhaustPipe: exhaustPipe,
   };
 }
 

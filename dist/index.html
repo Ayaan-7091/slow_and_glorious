@@ -6,9 +6,9 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>Auto-Rickshaw 3D Arcade - Level 1 Prototype</title>
-    <script type="module" crossorigin src="/assets/index-B40lfM0T.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DZPZNbv6.css">
+    <title>Tuk-Tuk Runner - 3D Indian Street Circuit</title>
+    <script type="module" crossorigin src="/assets/index-BNPH9Bx8.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BsyDJ1e9.css">
   </head>
   <body>
     <!-- Three.js Canvas Container -->
@@ -16,43 +16,89 @@
 
     <!-- Arcade HUD Top Bar -->
     <header class="hud-top">
-      <div class="hud-brand">
-        <span class="auto-icon">🛺</span>
-        <div class="brand-text">
-          <h1>TUK-TUK RUNNER</h1>
-          <span class="subtitle">Level 1 Arcade Prototype</span>
+      <!-- Left: Brand & Lap Timer Widget -->
+      <div class="hud-left-group">
+        <div class="hud-brand">
+          <span class="auto-icon">🛺</span>
+          <div class="brand-text">
+            <h1>TUK-TUK RUNNER</h1>
+            <span class="subtitle">Indian Street Circuit • Sprint 2</span>
+          </div>
+        </div>
+
+        <!-- Lap & Race Timing Widget -->
+        <div class="lap-timer-card">
+          <div class="lap-stat-row">
+            <span class="stat-label">LAP</span>
+            <span class="stat-highlight" id="lap-value">1 / 3</span>
+          </div>
+          <div class="lap-stat-row">
+            <span class="stat-label">TIME</span>
+            <span class="stat-digital" id="time-value">00:00.00</span>
+          </div>
+          <div class="lap-stat-row">
+            <span class="stat-label">BEST</span>
+            <span class="stat-gold" id="best-value">--:--.--</span>
+          </div>
+          <div class="checkpoint-tracker" id="checkpoint-indicator">
+            GATE: <span id="gate-value">START</span>
+          </div>
         </div>
       </div>
 
-      <!-- Center Speedometer & Gear -->
-      <div class="speedometer-cluster">
-        <div class="speed-box">
-          <span id="speed-value" class="digital-number">0</span>
-          <span class="speed-unit">KM/H</span>
+      <!-- Center: Speedometer & Garam Chai Nitro Boost Cluster -->
+      <div class="hud-center-group">
+        <div class="speedometer-cluster">
+          <div class="speed-box">
+            <span id="speed-value" class="digital-number">0</span>
+            <span class="speed-unit">KM/H</span>
+          </div>
+          <div class="gear-box">
+            <span class="gear-label">GEAR</span>
+            <span id="gear-value" class="gear-display">N</span>
+          </div>
+          <div id="drift-badge" class="drift-badge">
+            DRIFT!
+          </div>
         </div>
-        <div class="gear-box">
-          <span class="gear-label">GEAR</span>
-          <span id="gear-value" class="gear-display">N</span>
-        </div>
-        <div id="drift-badge" class="drift-badge">
-          DRIFT!
+
+        <!-- Garam Chai Nitro Boost Bar -->
+        <div class="boost-meter-container">
+          <div class="boost-meter-header">
+            <span class="boost-label">☕ GARAM CHAI NITRO</span>
+            <span class="boost-percent" id="boost-percent">0%</span>
+          </div>
+          <div class="boost-bar-track">
+            <div class="boost-bar-fill" id="boost-bar-fill" style="width: 0%;"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Action Buttons (Reset & Help) -->
+      <!-- Right: Action Buttons (Horn, Mute, Respawn) -->
       <div class="hud-actions">
-        <button id="btn-reset" class="hud-btn" title="Reset Vehicle (Key: R)">
+        <button id="btn-horn-hud" class="hud-btn" title="Sound Horn (Key: H)">
+          📯 Horn
+        </button>
+        <button id="btn-mute" class="hud-btn" title="Toggle Sound (Key: M)">
+          🔊 Mute
+        </button>
+        <button id="btn-reset" class="hud-btn respawn-btn" title="Respawn at Last Checkpoint (Key: R)">
           ↺ Respawn
         </button>
       </div>
     </header>
 
-    <!-- Desktop Controls Legend (Fades out when driving or on mobile) -->
+    <!-- Checkpoint Notification Banner (Flashes when passing gates) -->
+    <div id="checkpoint-banner" class="checkpoint-banner">
+      CHECKPOINT CLEARED!
+    </div>
+
+    <!-- Desktop Controls Legend (Keyboard Guide) -->
     <div class="controls-legend" id="controls-legend">
       <div class="legend-header">🎮 CONTROLS</div>
       <div class="legend-row">
         <span class="key-pill">W</span> / <span class="key-pill">↑</span>
-        <span class="key-desc">Accelerate (Gas)</span>
+        <span class="key-desc">Gas (Accelerate)</span>
       </div>
       <div class="legend-row">
         <span class="key-pill">S</span> / <span class="key-pill">↓</span>
@@ -64,32 +110,54 @@
         <span class="key-desc">Steer Left / Right</span>
       </div>
       <div class="legend-row">
-        <span class="key-pill wide">SPACEBAR</span>
-        <span class="key-desc">Power Drift & Sparks</span>
+        <span class="key-pill wide">SPACE</span>
+        <span class="key-desc">Power Drift (Charges Nitro!)</span>
+      </div>
+      <div class="legend-row">
+        <span class="key-pill wide">SHIFT</span>
+        <span class="key-desc">☕ Garam Chai Boost</span>
+      </div>
+      <div class="legend-row">
+        <span class="key-pill">H</span>
+        <span class="key-desc">Double-Beep Horn</span>
       </div>
       <div class="legend-row">
         <span class="key-pill">R</span>
-        <span class="key-desc">Reset Rickshaw</span>
+        <span class="key-desc">Respawn at Checkpoint</span>
+      </div>
+      <div class="legend-row">
+        <span class="key-pill">M</span>
+        <span class="key-desc">Mute / Unmute Audio</span>
       </div>
     </div>
 
-    <!-- Mobile Touch Overlay (Bottom of the screen) -->
+    <!-- Mobile Touch Overlay (Bottom of Screen) -->
     <div class="touch-controls-overlay" id="touch-overlay">
-      <!-- Bottom-Left: Steering Buttons -->
-      <div class="touch-cluster steering-cluster">
-        <button id="btn-left" class="touch-btn steer-btn" aria-label="Steer Left">
-          ◀
+      <!-- Bottom-Left: Steering Buttons & Mobile Horn -->
+      <div class="touch-left-stack">
+        <button id="btn-horn" class="touch-btn horn-touch-btn" aria-label="Sound Horn">
+          📯 HORN
         </button>
-        <button id="btn-right" class="touch-btn steer-btn" aria-label="Steer Right">
-          ▶
-        </button>
+        <div class="touch-cluster steering-cluster">
+          <button id="btn-left" class="touch-btn steer-btn" aria-label="Steer Left">
+            ◀
+          </button>
+          <button id="btn-right" class="touch-btn steer-btn" aria-label="Steer Right">
+            ▶
+          </button>
+        </div>
       </div>
 
-      <!-- Bottom-Right: Gas, Brake, and Drift Buttons -->
+      <!-- Bottom-Right: Boost, Drift, Brake, Gas -->
       <div class="touch-cluster action-cluster">
-        <button id="btn-drift" class="touch-btn drift-btn" aria-label="Drift">
-          DRIFT
-        </button>
+        <div class="power-buttons-row">
+          <button id="btn-drift" class="touch-btn drift-btn" aria-label="Drift">
+            DRIFT
+          </button>
+          <button id="btn-boost" class="touch-btn boost-btn" aria-label="Garam Chai Nitro Boost">
+            ⚡ NITRO
+          </button>
+        </div>
         <div class="pedal-group">
           <button id="btn-brake" class="touch-btn brake-btn" aria-label="Brake or Reverse">
             BRAKE

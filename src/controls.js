@@ -2,20 +2,23 @@
  * ControlsManager
  * 
  * Handles unified input from both:
- *  1. Desktop Keyboard (WASD, Arrow Keys, Spacebar for drift, R for reset)
- *  2. Mobile / Touchscreen on-screen buttons (Left, Right, Gas, Brake, Drift)
+ *  1. Desktop Keyboard (WASD, Arrow Keys, Spacebar for drift, Shift for Boost, H for Horn, R for Respawn, M for Mute)
+ *  2. Mobile / Touchscreen buttons (Left, Right, Gas, Brake, Drift, Boost, Horn, Mute)
  * 
- * Multi-touch friendly: Allows holding Gas while steering and tapping Drift simultaneously.
+ * Multi-touch friendly: Allows holding Gas + Boost while steering and tapping Horn or Drift.
  */
 export class ControlsManager {
-  constructor() {
-    // Current input states (true if currently pressed)
+  constructor(audioManager) {
+    this.audio = audioManager;
+
+    // Current input states
     this.state = {
       gas: false,
       brake: false,
       left: false,
       right: false,
       drift: false,
+      boost: false,
       reset: false,
     };
 
@@ -28,12 +31,24 @@ export class ControlsManager {
 
   initKeyboard() {
     window.addEventListener('keydown', (e) => {
-      // Prevent default scrolling for game keys
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+      // Prevent default browser scrolling and special behaviors
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Shift'].includes(e.key)) {
         e.preventDefault();
       }
 
       this.activeKeys.add(e.code);
+
+      // Trigger Horn on KeyH
+      if (e.code === 'KeyH' && this.audio) {
+        this.audio.playHorn();
+      }
+
+      // Toggle Mute on KeyM
+      if (e.code === 'KeyM' && this.audio) {
+        const isMuted = this.audio.toggleMute();
+        this.updateMuteUI(isMuted);
+      }
+
       this.updateKeyboardState();
     });
 
@@ -42,7 +57,6 @@ export class ControlsManager {
       this.updateKeyboardState();
     });
 
-    // Reset keys if window loses focus
     window.addEventListener('blur', () => {
       this.activeKeys.clear();
       this.updateKeyboardState();
@@ -55,15 +69,13 @@ export class ControlsManager {
     this.state.left = this.activeKeys.has('KeyA') || this.activeKeys.has('ArrowLeft');
     this.state.right = this.activeKeys.has('KeyD') || this.activeKeys.has('ArrowRight');
     this.state.drift = this.activeKeys.has('Space');
+    this.state.boost = this.activeKeys.has('ShiftLeft') || this.activeKeys.has('ShiftRight');
 
     if (this.activeKeys.has('KeyR')) {
       this.state.reset = true;
     }
   }
 
-  /**
-   * Binds pointer (mouse & touch) events to an on-screen button element
-   */
   bindButton(elementId, stateProperty) {
     const el = document.getElementById(elementId);
     if (!el) return;
@@ -80,13 +92,10 @@ export class ControlsManager {
       el.classList.remove('active');
     };
 
-    // Pointer events handle both touch, mouse, and stylus cleanly
     el.addEventListener('pointerdown', press);
     el.addEventListener('pointerup', release);
     el.addEventListener('pointercancel', release);
     el.addEventListener('pointerleave', release);
-
-    // Context menu prevention on mobile long-press
     el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
@@ -96,6 +105,33 @@ export class ControlsManager {
     this.bindButton('btn-gas', 'gas');
     this.bindButton('btn-brake', 'brake');
     this.bindButton('btn-drift', 'drift');
+    this.bindButton('btn-boost', 'boost');
+
+    // Horn button
+    const hornBtn = document.getElementById('btn-horn');
+    if (hornBtn) {
+      hornBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        hornBtn.classList.add('active');
+        if (this.audio) this.audio.playHorn();
+      });
+      const endHorn = () => hornBtn.classList.remove('active');
+      hornBtn.addEventListener('pointerup', endHorn);
+      hornBtn.addEventListener('pointercancel', endHorn);
+      hornBtn.addEventListener('pointerleave', endHorn);
+    }
+
+    // Mute toggle button
+    const muteBtn = document.getElementById('btn-mute');
+    if (muteBtn) {
+      muteBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (this.audio) {
+          const isMuted = this.audio.toggleMute();
+          this.updateMuteUI(isMuted);
+        }
+      });
+    }
 
     // Reset button on HUD
     const resetBtn = document.getElementById('btn-reset');
@@ -107,13 +143,17 @@ export class ControlsManager {
     }
   }
 
-  /**
-   * Returns whether a reset trigger occurred and clears it
-   */
+  updateMuteUI(isMuted) {
+    const muteBtn = document.getElementById('btn-mute');
+    if (muteBtn) {
+      muteBtn.textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
+      muteBtn.classList.toggle('muted', isMuted);
+    }
+  }
+
   consumeReset() {
     const r = this.state.reset;
     this.state.reset = false;
     return r;
   }
 }
-

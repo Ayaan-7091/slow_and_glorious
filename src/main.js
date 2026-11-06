@@ -1,87 +1,82 @@
 import * as THREE from 'three';
 import { createRickshaw } from './createRickshaw.js';
-import { createCones } from './createCones.js';
-import { SparkParticleSystem } from './particles.js';
+import { createTrack } from './createTrack.js';
+import { SparkParticleSystem, NitroFlameSystem } from './particles.js';
 import { ControlsManager } from './controls.js';
+import { AudioManager } from './audio.js';
 
 /**
  * ============================================================================
- * 3D AUTO-RICKSHAW ARCADE PROTOTYPE (LEVEL 1)
+ * 3D AUTO-RICKSHAW ARCADE RACER (SPRINT 2 - STREET CIRCUIT EDITION)
  * Built with Three.js & Vite
  * ============================================================================
  * 
- * This file orchestrates the entire game:
- *  1. Scene, Sunset Lighting, Shadows, and Fog
- *  2. Ground Plane, Grid Helper, and Traffic Cones
- *  3. Procedural Auto-Rickshaw instance
- *  4. Drift Spark Particle System
- *  5. Unified Controls (Desktop Keyboard + Mobile Touch Overlay)
- *  6. Physics & Arcade Driving Loop with 3-Wheel Tilting
- *  7. Smooth Chase Camera with speed pull-back
- *  8. HUD (Speedometer, Drift Indicator, Controls)
+ * Game Loop & Systems:
+ *  1. Scene, Sunset Lighting, Soft Shadows, Atmospheric Fog & Grid Ground
+ *  2. Synthesized Web Audio API Manager (Engine hum, double-beep horn, chimes)
+ *  3. Closed-Loop Indian Street Circuit (Asphalt ribbon, curbs, barriers, chai stalls, trees)
+ *  4. Procedural Auto-Rickshaw Instance (Iconic yellow/green, 3 wheels, tilt dynamics)
+ *  5. Dual Particle Systems: Drift Sparks + Garam Chai Nitro Flame Exhaust
+ *  6. Sequential Checkpoints & Lap Timing with Best Lap LocalStorage
+ *  7. Dynamic FOV Boost & 3-Wheeler Handling Physics
+ *  8. Barrier & Cone Collisions with Flying Physics
+ *  9. Full Responsive HUD & Mobile Multi-Touch Overlay
  */
 
 // ----------------------------------------------------------------------------
 // 1. SCENE SETUP & SUNSET ATMOSPHERE
 // ----------------------------------------------------------------------------
 const container = document.getElementById('canvas-container');
-
-// The Scene is the 3D container holding all lights, meshes, and cameras
 const scene = new THREE.Scene();
 
-// Warm sunset background color
+// Warm sunset palette
 const sunsetColor = 0xf58a4b;
 scene.background = new THREE.Color(sunsetColor);
+scene.fog = new THREE.FogExp2(sunsetColor, 0.009); // Sunset distance haze
 
-// Atmospheric distance fog: blends the horizon into the warm sunset sky
-scene.fog = new THREE.FogExp2(sunsetColor, 0.012);
-
-// Camera: Perspective camera simulates the human eye (FOV, aspect, near, far)
+// Camera with dynamic FOV (widens to 72 on Nitro Boost!)
+const defaultFOV = 55;
+const boostFOV = 72;
 const camera = new THREE.PerspectiveCamera(
-  55,
+  defaultFOV,
   window.innerWidth / window.innerHeight,
   0.1,
-  500
+  600
 );
-// Initial camera position (will be dynamically driven by the chase camera)
-camera.position.set(0, 5, -10);
 
-// WebGL Renderer: draws the 3D scene onto the 2D canvas
+// High-performance WebGL renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Crisp on high-DPI screens
-renderer.shadowMap.enabled = true; // Enable shadow casting
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Soft shadow edges
-renderer.toneMapping = THREE.ACESFilmicToneMapping; // Cinematic color grading
-renderer.toneMappingExposure = 1.05;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
 container.appendChild(renderer.domElement);
 
 // ----------------------------------------------------------------------------
-// 2. LIGHTING (SUNSET GOLDEN HOUR)
+// 2. SUNSET LIGHTING & SHADOWS
 // ----------------------------------------------------------------------------
-// Hemisphere Light: Simulates ambient sky bounce (warm peach sky, deep earthy ground)
-const hemiLight = new THREE.HemisphereLight(0xffdfba, 0x3d201c, 1.1);
+// Hemisphere ambient sky bounce
+const hemiLight = new THREE.HemisphereLight(0xffdfba, 0x3d201c, 1.15);
 scene.add(hemiLight);
 
-// Directional Sunlight: Low-angled golden sunlight casting long, dramatic shadows
-const sunLight = new THREE.DirectionalLight(0xffb066, 1.8);
-sunLight.position.set(35, 30, 25);
+// Angled directional sunlight casting long golden shadows
+const sunLight = new THREE.DirectionalLight(0xffb066, 1.9);
+sunLight.position.set(45, 45, 30);
 sunLight.castShadow = true;
-
-// Configure shadow resolution and frustum volume
 sunLight.shadow.mapSize.width = 2048;
 sunLight.shadow.mapSize.height = 2048;
 sunLight.shadow.camera.near = 1;
-sunLight.shadow.camera.far = 120;
-const d = 40;
+sunLight.shadow.camera.far = 160;
+const d = 55;
 sunLight.shadow.camera.left = -d;
 sunLight.shadow.camera.right = d;
 sunLight.shadow.camera.top = d;
 sunLight.shadow.camera.bottom = -d;
-sunLight.shadow.bias = -0.0005; // Prevents shadow acne
+sunLight.shadow.bias = -0.0004;
 scene.add(sunLight);
 
-// Target object for sunlight to track near the player
 const sunTarget = new THREE.Object3D();
 scene.add(sunTarget);
 sunLight.target = sunTarget;
@@ -89,193 +84,243 @@ sunLight.target = sunTarget;
 // ----------------------------------------------------------------------------
 // 3. GROUND PLANE & VISIBLE GRID HELPER
 // ----------------------------------------------------------------------------
-// Large asphalt ground plane
-const groundGeo = new THREE.PlaneGeometry(350, 350);
+const groundGeo = new THREE.PlaneGeometry(600, 600);
 const groundMat = new THREE.MeshStandardMaterial({
-  color: 0x22262c, // Dark asphalt
-  roughness: 0.9,
-  metalness: 0.1,
+  color: 0x1f2329,
+  roughness: 0.95,
+  metalness: 0.05,
 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x = -Math.PI / 2; // Lie flat horizontally on the XZ plane
+ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Visible Grid Helper: Helps gauge speed, motion direction, and drift lines
-// Primary grid lines in sunset orange (0xff8c42), secondary in subtle slate (0x3c434f)
-const gridHelper = new THREE.GridHelper(350, 175, 0xff8c42, 0x363d47);
-gridHelper.position.y = 0.01; // Slightly above ground to avoid z-fighting
+// Sunset orange / slate ground grid
+const gridHelper = new THREE.GridHelper(600, 200, 0xff8c42, 0x343b45);
+gridHelper.position.y = 0.01;
 scene.add(gridHelper);
 
 // ----------------------------------------------------------------------------
-// 4. TRAFFIC CONES (20 OBSTACLES)
+// 4. AUDIO SYSTEM & INPUT CONTROLS
 // ----------------------------------------------------------------------------
-const { conesGroup, coneDataList } = createCones(scene);
+const audio = new AudioManager();
+const controls = new ControlsManager(audio);
+
+// Bind HUD Horn button as well
+const hudHornBtn = document.getElementById('btn-horn-hud');
+if (hudHornBtn) {
+  hudHornBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    audio.playHorn();
+  });
+}
 
 // ----------------------------------------------------------------------------
-// 5. PROCEDURAL AUTO-RICKSHAW
+// 5. CLOSED-LOOP INDIAN STREET CIRCUIT & PROPS
+// ----------------------------------------------------------------------------
+const track = createTrack(scene);
+
+// ----------------------------------------------------------------------------
+// 6. PROCEDURAL AUTO-RICKSHAW & PARTICLES
 // ----------------------------------------------------------------------------
 const rickshaw = createRickshaw();
 scene.add(rickshaw.group);
 
-// Forward spotlight cone originating from the rickshaw's headlight
-const headlightBeam = new THREE.SpotLight(0xfff1cf, 2.5, 30, Math.PI / 6, 0.4, 1.2);
+// Headlight forward beam
+const headlightBeam = new THREE.SpotLight(0xfff1cf, 2.8, 35, Math.PI / 5.5, 0.4, 1.2);
 headlightBeam.position.set(0, 0.45, 1.2);
 rickshaw.frontForkGroup.add(headlightBeam);
 
 const headlightTarget = new THREE.Object3D();
-headlightTarget.position.set(0, 0.1, 8.0);
+headlightTarget.position.set(0, 0.1, 9.0);
 rickshaw.frontForkGroup.add(headlightTarget);
 headlightBeam.target = headlightTarget;
 
-// ----------------------------------------------------------------------------
-// 6. SPARK PARTICLE SYSTEM (DRIFTING EFFECTS)
-// ----------------------------------------------------------------------------
+// Particle systems: Drift sparks + Nitro boost flames
 const sparkSystem = new SparkParticleSystem(scene, 80);
+const nitroFlameSystem = new NitroFlameSystem(scene, 60);
 
 // ----------------------------------------------------------------------------
-// 7. INPUT CONTROLS (PC KEYBOARD + MOBILE TOUCH BUTTONS)
+// 7. VEHICLE PHYSICS STATE & TUNING
 // ----------------------------------------------------------------------------
-const controls = new ControlsManager();
+// Start/Finish checkpoint
+const startGate = track.checkpointGates[0];
 
-// ----------------------------------------------------------------------------
-// 8. VEHICLE PHYSICS STATE & TUNING PARAMETERS
-// ----------------------------------------------------------------------------
 const vehicle = {
   // World Transform
-  position: new THREE.Vector3(0, 0, 0),
-  heading: 0, // Yaw angle in radians around the vertical Y axis (facing +Z at 0)
-  
-  // Velocities
-  speed: 0, // Linear forward/reverse speed in units/sec
-  maxSpeed: 25.0, // Top forward speed
-  maxReverseSpeed: -8.0, // Top reverse speed
-  acceleration: 16.0, // Rate of speed increase on Gas
-  brakingDecel: 24.0, // Rate of speed decrease on Brake
-  naturalFriction: 6.5, // Rolling resistance when coasting
+  position: startGate.position.clone(),
+  heading: startGate.heading,
 
-  // Steering & Drift
-  steerAngle: 0, // Current angle of front fork / handlebars
-  maxSteerAngle: 0.65, // ~37 degrees max lock
-  steerResponsiveness: 6.0, // How fast the wheel turns toward input direction
-  turnRate: 2.1, // Turning angular velocity
-  
+  // Speed & Accelerations
+  speed: 0,
+  baseMaxSpeed: 25.0,
+  boostMaxSpeed: 38.0,
+  maxSpeed: 25.0,
+  maxReverseSpeed: -8.0,
+  acceleration: 16.0,
+  brakingDecel: 25.0,
+  naturalFriction: 6.0,
+
+  // Steering & Turning
+  steerAngle: 0,
+  maxSteerAngle: 0.65,
+  steerResponsiveness: 6.5,
+  turnRate: 2.2,
+
   // Drift Mechanics
   isDrifting: false,
-  driftYawRateMultiplier: 1.7, // Sharp turning rate while drifting
-  lateralSlip: 0, // Sideways sliding velocity
+  driftYawMultiplier: 1.75,
+  lateralSlip: 0,
+
+  // Garam Chai Nitro Boost Mechanics
+  boostMeter: 0, // 0 to 100
+  isBoosting: false,
+  boostChargeRate: 35.0, // Charges in ~3s of continuous drifting
+  boostDrainRate: 26.0, // Drains in ~4s
 
   // Dynamic 3-Wheeler Tilt (Chassis Lean & Pitch)
-  bodyRoll: 0, // Z-axis tilt: rickshaw body leans outward on sharp turns
-  bodyPitch: 0, // X-axis pitch: nose dives under braking, lifts on acceleration
+  bodyRoll: 0,
+  bodyPitch: 0,
 };
 
-// Reset rickshaw position to center
-function resetRickshaw() {
-  vehicle.position.set(0, 0, 0);
-  vehicle.heading = 0;
+// Align rickshaw at starting line initially
+rickshaw.group.position.copy(vehicle.position);
+rickshaw.group.rotation.y = vehicle.heading;
+
+// ----------------------------------------------------------------------------
+// 8. CHECKPOINT ARCHES & LAP TIMER SYSTEM
+// ----------------------------------------------------------------------------
+const raceState = {
+  currentLap: 1,
+  totalLaps: 3,
+  lapStartTime: performance.now(),
+  currentLapTime: 0,
+  bestLapTime: parseFloat(localStorage.getItem('tuktuk_best_lap')) || null,
+  nextRequiredGateIdx: 1, // Start by crossing Gate 1 after Start Line
+  lastPassedGateIdx: 0,
+  isFinished: false,
+};
+
+// Format milliseconds into MM:SS.SS
+function formatTime(ms) {
+  if (!ms || ms === Infinity) return '--:--.--';
+  const totalSec = ms / 1000;
+  const mins = Math.floor(totalSec / 60);
+  const secs = Math.floor(totalSec % 60);
+  const hundredths = Math.floor((ms % 1000) / 10);
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(hundredths).padStart(2, '0')}`;
+}
+
+// Show animated banner popup when clearing checkpoints
+const checkpointBannerEl = document.getElementById('checkpoint-banner');
+let bannerTimeout = null;
+function showCheckpointBanner(text) {
+  if (!checkpointBannerEl) return;
+  checkpointBannerEl.textContent = text;
+  checkpointBannerEl.classList.add('show');
+  clearTimeout(bannerTimeout);
+  bannerTimeout = setTimeout(() => {
+    checkpointBannerEl.classList.remove('show');
+  }, 1400);
+}
+
+// Respawn vehicle at the last validated checkpoint
+function respawnAtLastCheckpoint() {
+  const gate = track.checkpointGates[raceState.lastPassedGateIdx];
+  if (!gate) return;
+
+  vehicle.position.copy(gate.position);
+  vehicle.heading = gate.heading;
   vehicle.speed = 0;
   vehicle.steerAngle = 0;
   vehicle.lateralSlip = 0;
   vehicle.bodyRoll = 0;
   vehicle.bodyPitch = 0;
-  rickshaw.group.position.set(0, 0, 0);
-  rickshaw.group.rotation.set(0, 0, 0);
+  vehicle.isBoosting = false;
+
+  rickshaw.group.position.copy(vehicle.position);
+  rickshaw.group.rotation.set(0, vehicle.heading, 0);
   rickshaw.tiltGroup.rotation.set(0, 0, 0);
   rickshaw.frontForkGroup.rotation.y = 0;
+}
 
-  // Reset cone positions
-  coneDataList.forEach((c) => {
-    c.mesh.position.copy(c.basePos);
-    c.mesh.rotation.set(0, 0, 0);
-    c.tiltVel.set(0, 0, 0);
-    c.isHit = false;
-  });
+// Check if vehicle has passed the next required gate in sequential order
+function updateCheckpoints() {
+  const nextGate = track.checkpointGates[raceState.nextRequiredGateIdx];
+  if (!nextGate) return;
+
+  const dist = vehicle.position.distanceTo(nextGate.position);
+  if (dist < nextGate.radius + 1.2) {
+    // Valid checkpoint reached!
+    raceState.lastPassedGateIdx = raceState.nextRequiredGateIdx;
+
+    if (nextGate.isStartFinish) {
+      // 🏁 FINISHED A LAP!
+      audio.playLapSound();
+
+      const completedLapTime = performance.now() - raceState.lapStartTime;
+      raceState.lapStartTime = performance.now();
+
+      // Check for new best lap
+      if (!raceState.bestLapTime || completedLapTime < raceState.bestLapTime) {
+        raceState.bestLapTime = completedLapTime;
+        localStorage.setItem('tuktuk_best_lap', completedLapTime.toString());
+        showCheckpointBanner(`🔥 NEW BEST LAP: ${formatTime(completedLapTime)}!`);
+      } else {
+        showCheckpointBanner(`🏁 LAP ${raceState.currentLap} COMPLETE: ${formatTime(completedLapTime)}!`);
+      }
+
+      // Increment Lap
+      if (raceState.currentLap < raceState.totalLaps) {
+        raceState.currentLap++;
+      } else {
+        showCheckpointBanner(`🏆 GRAND PRIX FINISHED! Best: ${formatTime(raceState.bestLapTime)}`);
+      }
+
+      // Next gate after Start/Finish is Gate 1
+      raceState.nextRequiredGateIdx = 1;
+    } else {
+      // Crossed intermediate checkpoint gate
+      audio.playCheckpointChime();
+      showCheckpointBanner(`⚡ CHECKPOINT ${nextGate.index} / 4 CLEARED!`);
+
+      // Advance to next gate (or 0 for Start/Finish after 4)
+      raceState.nextRequiredGateIdx = (raceState.nextRequiredGateIdx + 1) % track.checkpointGates.length;
+    }
+  }
 }
 
 // ----------------------------------------------------------------------------
-// 9. CHASE CAMERA CONTROLLER
-// ----------------------------------------------------------------------------
-// Camera state variables
-const cameraCurrentPos = new THREE.Vector3(0, 4, -8);
-const cameraLookTarget = new THREE.Vector3(0, 1, 0);
-
-function updateChaseCamera(dt) {
-  // Speed fraction (0.0 at rest to 1.0 at max speed)
-  const speedRatio = Math.min(Math.abs(vehicle.speed) / vehicle.maxSpeed, 1.0);
-
-  // Dynamic distance: camera pulls back further at higher speeds to give speed sensation
-  const baseDistance = 6.4;
-  const speedPullback = speedRatio * 2.8;
-  const followDistance = baseDistance + speedPullback;
-
-  const baseHeight = 3.0;
-  const speedHeight = speedRatio * 0.7;
-  const followHeight = baseHeight + speedHeight;
-
-  // Direction vehicle is facing
-  const forwardX = Math.sin(vehicle.heading);
-  const forwardZ = Math.cos(vehicle.heading);
-
-  // Ideal camera position: placed behind the vehicle along its heading vector
-  const desiredCamX = vehicle.position.x - forwardX * followDistance;
-  const desiredCamZ = vehicle.position.z - forwardZ * followDistance;
-  const desiredCamY = vehicle.position.y + followHeight;
-
-  // Smoothly interpolate (lerp) current camera position toward desired position
-  // Using exponential decay makes it frame-rate independent!
-  const camLerpFactor = 1.0 - Math.exp(-6.0 * dt);
-  cameraCurrentPos.lerp(
-    new THREE.Vector3(desiredCamX, desiredCamY, desiredCamZ),
-    camLerpFactor
-  );
-  camera.position.copy(cameraCurrentPos);
-
-  // Point camera at the rickshaw with a slight forward and upward look offset
-  const desiredLookX = vehicle.position.x + forwardX * 1.5;
-  const desiredLookZ = vehicle.position.z + forwardZ * 1.5;
-  const desiredLookY = vehicle.position.y + 1.25;
-
-  const lookLerpFactor = 1.0 - Math.exp(-9.0 * dt);
-  cameraLookTarget.lerp(
-    new THREE.Vector3(desiredLookX, desiredLookY, desiredLookZ),
-    lookLerpFactor
-  );
-  camera.lookAt(cameraLookTarget);
-
-  // Move sunlight target along with vehicle to keep crisp shadows around player
-  sunTarget.position.set(vehicle.position.x, 0, vehicle.position.z);
-  sunLight.position.set(
-    vehicle.position.x + 35,
-    30,
-    vehicle.position.z + 25
-  );
-}
-
-// ----------------------------------------------------------------------------
-// 10. HUD & UI REFERENCES
+// 9. HUD REFERENCES & UPDATES
 // ----------------------------------------------------------------------------
 const speedValueEl = document.getElementById('speed-value');
 const driftBadgeEl = document.getElementById('drift-badge');
 const gearValueEl = document.getElementById('gear-value');
+const boostBarFillEl = document.getElementById('boost-bar-fill');
+const boostPercentEl = document.getElementById('boost-percent');
+const lapValueEl = document.getElementById('lap-value');
+const timeValueEl = document.getElementById('time-value');
+const bestValueEl = document.getElementById('best-value');
+const gateValueEl = document.getElementById('gate-value');
 
 function updateHUD() {
+  // Speedometer
   if (speedValueEl) {
-    // Convert units/sec to friendly km/h readout
     const kmh = Math.round(Math.abs(vehicle.speed) * 3.6);
     speedValueEl.textContent = kmh;
   }
 
+  // Drift Badge
   if (driftBadgeEl) {
-    if (vehicle.isDrifting) {
-      driftBadgeEl.classList.add('active');
-    } else {
-      driftBadgeEl.classList.remove('active');
-    }
+    driftBadgeEl.classList.toggle('active', vehicle.isDrifting);
   }
 
+  // Gear Display
   if (gearValueEl) {
-    if (vehicle.isDrifting) {
+    if (vehicle.isBoosting) {
+      gearValueEl.textContent = 'NITRO';
+      gearValueEl.style.color = '#00f0ff';
+    } else if (vehicle.isDrifting) {
       gearValueEl.textContent = 'DRIFT';
       gearValueEl.style.color = '#ff9900';
     } else if (vehicle.speed > 0.5) {
@@ -289,6 +334,83 @@ function updateHUD() {
       gearValueEl.style.color = '#cccccc';
     }
   }
+
+  // Garam Chai Nitro Boost Meter
+  if (boostBarFillEl && boostPercentEl) {
+    const pct = Math.round(vehicle.boostMeter);
+    boostBarFillEl.style.width = `${pct}%`;
+    boostPercentEl.textContent = `${pct}%`;
+    boostBarFillEl.classList.toggle('ready', pct >= 95);
+  }
+
+  // Lap & Timer Widget
+  if (lapValueEl) {
+    lapValueEl.textContent = `${raceState.currentLap} / ${raceState.totalLaps}`;
+  }
+
+  if (timeValueEl) {
+    raceState.currentLapTime = performance.now() - raceState.lapStartTime;
+    timeValueEl.textContent = formatTime(raceState.currentLapTime);
+  }
+
+  if (bestValueEl) {
+    bestValueEl.textContent = formatTime(raceState.bestLapTime);
+  }
+
+  if (gateValueEl) {
+    const nextIdx = raceState.nextRequiredGateIdx;
+    gateValueEl.textContent = nextIdx === 0 ? 'FINISH' : `GATE ${nextIdx}`;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 10. CHASE CAMERA CONTROLLER (DYNAMIC FOV & PULL-BACK)
+// ----------------------------------------------------------------------------
+const cameraCurrentPos = new THREE.Vector3(0, 4, -8);
+const cameraLookTarget = new THREE.Vector3(0, 1, 0);
+
+function updateChaseCamera(dt) {
+  const speedRatio = Math.min(Math.abs(vehicle.speed) / vehicle.boostMaxSpeed, 1.0);
+
+  // Dynamic distance and height based on speed and boost
+  const baseDistance = 6.4;
+  const speedPullback = speedRatio * 3.4;
+  const followDistance = baseDistance + speedPullback;
+
+  const baseHeight = 3.0;
+  const followHeight = baseHeight + speedRatio * 0.9;
+
+  const forwardX = Math.sin(vehicle.heading);
+  const forwardZ = Math.cos(vehicle.heading);
+
+  const desiredCamX = vehicle.position.x - forwardX * followDistance;
+  const desiredCamZ = vehicle.position.z - forwardZ * followDistance;
+  const desiredCamY = vehicle.position.y + followHeight;
+
+  // Frame-rate independent lerp
+  const camLerp = 1.0 - Math.exp(-6.5 * dt);
+  cameraCurrentPos.lerp(new THREE.Vector3(desiredCamX, desiredCamY, desiredCamZ), camLerp);
+  camera.position.copy(cameraCurrentPos);
+
+  // Look-at point slightly ahead of vehicle
+  const desiredLookX = vehicle.position.x + forwardX * 1.8;
+  const desiredLookZ = vehicle.position.z + forwardZ * 1.8;
+  const desiredLookY = vehicle.position.y + 1.25;
+
+  const lookLerp = 1.0 - Math.exp(-9.0 * dt);
+  cameraLookTarget.lerp(new THREE.Vector3(desiredLookX, desiredLookY, desiredLookZ), lookLerp);
+  camera.lookAt(cameraLookTarget);
+
+  // Dynamic Camera FOV: widens during Garam Chai Nitro Boost!
+  const targetFOV = vehicle.isBoosting ? boostFOV : defaultFOV;
+  if (Math.abs(camera.fov - targetFOV) > 0.1) {
+    camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 8.0 * dt);
+    camera.updateProjectionMatrix();
+  }
+
+  // Update shadow light position to follow player
+  sunTarget.position.set(vehicle.position.x, 0, vehicle.position.z);
+  sunLight.position.set(vehicle.position.x + 45, 45, vehicle.position.z + 30);
 }
 
 // ----------------------------------------------------------------------------
@@ -299,54 +421,68 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
 
-  // Delta time: time in seconds since previous frame (capped to avoid physics explosions on lag spikes)
   const dt = Math.min(clock.getDelta(), 0.05);
 
-  // Check reset request
+  // Check Respawn Trigger
   if (controls.consumeReset()) {
-    resetRickshaw();
+    respawnAtLastCheckpoint();
   }
 
   // -----------------------------------------------------------
-  // A. INPUT PROCESSING & STEERING
+  // A. STEERING & FRONT FORK
   // -----------------------------------------------------------
   let targetSteer = 0;
   if (controls.state.left) targetSteer += 1;
   if (controls.state.right) targetSteer -= 1;
 
-  // Smooth front fork steering
   const steerSpeed = vehicle.steerResponsiveness * dt;
   vehicle.steerAngle = THREE.MathUtils.lerp(
     vehicle.steerAngle,
     targetSteer * vehicle.maxSteerAngle,
     steerSpeed
   );
-
-  // Turn front fork & handlebars visually
   rickshaw.frontForkGroup.rotation.y = vehicle.steerAngle;
 
   // -----------------------------------------------------------
-  // B. ACCELERATION, BRAKING & NATURAL FRICTION
+  // B. GARAM CHAI NITRO BOOST MECHANIC
   // -----------------------------------------------------------
-  const isGas = controls.state.gas;
+  // Want boost when pressing Shift / mobile boost button, has meter, and moving forward
+  const wantsBoost = controls.state.boost && vehicle.boostMeter > 3.0 && vehicle.speed > 0.5;
+
+  if (wantsBoost) {
+    if (!vehicle.isBoosting) {
+      audio.playBoostIgnition();
+    }
+    vehicle.isBoosting = true;
+    vehicle.maxSpeed = vehicle.boostMaxSpeed;
+    // Consume boost meter
+    vehicle.boostMeter = Math.max(0, vehicle.boostMeter - vehicle.boostDrainRate * dt);
+  } else {
+    vehicle.isBoosting = false;
+    vehicle.maxSpeed = vehicle.baseMaxSpeed;
+  }
+
+  // -----------------------------------------------------------
+  // C. ACCELERATION, BRAKING & NATURAL FRICTION
+  // -----------------------------------------------------------
+  const isGas = controls.state.gas || vehicle.isBoosting;
   const isBrake = controls.state.brake;
 
+  const currentAccel = vehicle.isBoosting ? vehicle.acceleration + 24.0 : vehicle.acceleration;
+
   if (isGas) {
-    // Accelerate forward
-    vehicle.speed += vehicle.acceleration * dt;
+    vehicle.speed += currentAccel * dt;
     if (vehicle.speed > vehicle.maxSpeed) vehicle.speed = vehicle.maxSpeed;
   } else if (isBrake) {
     if (vehicle.speed > 0.5) {
-      // Actively brake down to a stop
       vehicle.speed -= vehicle.brakingDecel * dt;
       if (vehicle.speed < 0) vehicle.speed = 0;
     } else {
-      // Once stopped, reverse backwards
       vehicle.speed -= vehicle.acceleration * 0.65 * dt;
       if (vehicle.speed < vehicle.maxReverseSpeed) vehicle.speed = vehicle.maxReverseSpeed;
     }
   } else {
-    // Natural friction / rolling resistance decelerates the vehicle to rest
+    // Natural friction
     if (vehicle.speed > 0) {
       vehicle.speed -= vehicle.naturalFriction * dt;
       if (vehicle.speed < 0) vehicle.speed = 0;
@@ -357,24 +493,22 @@ function animate() {
   }
 
   // -----------------------------------------------------------
-  // C. DRIFT MECHANICS & YAW ROTATION
+  // D. DRIFT MECHANICS & BOOST CHARGING
   // -----------------------------------------------------------
-  // Drifting is active when pressing Space/Drift button while having forward speed
+  // Drifting is active when pressing Space/Drift button with forward speed
   const wantsDrift = controls.state.drift && Math.abs(vehicle.speed) > 4.0;
   vehicle.isDrifting = wantsDrift;
 
-  // Steering only turns the vehicle when moving!
-  const speedNormalized = vehicle.speed / vehicle.maxSpeed;
+  // Holding a drift while turning charges the boost meter!
+  if (vehicle.isDrifting && Math.abs(vehicle.steerAngle) > 0.15) {
+    vehicle.boostMeter = Math.min(100, vehicle.boostMeter + vehicle.boostChargeRate * dt);
+  }
+
   const speedMagnitude = Math.abs(vehicle.speed);
 
   if (speedMagnitude > 0.1) {
-    // Steering direction inverts naturally when reversing
     const turnDirection = Math.sign(vehicle.speed);
-    
-    // Higher turn rate when drifting allows whipping the tail around corners!
-    const driftMultiplier = vehicle.isDrifting ? vehicle.driftYawRateMultiplier : 1.0;
-
-    // Angular yaw velocity
+    const driftMultiplier = vehicle.isDrifting ? vehicle.driftYawMultiplier : 1.0;
     const yawDelta =
       vehicle.steerAngle *
       vehicle.turnRate *
@@ -386,142 +520,145 @@ function animate() {
   }
 
   // -----------------------------------------------------------
-  // D. DRIFT LATERAL SLIP & POSITION INTEGRATION
+  // E. LATERAL SLIP & POSITION INTEGRATION
   // -----------------------------------------------------------
-  // Direction the rickshaw chassis is pointing
   const forwardX = Math.sin(vehicle.heading);
   const forwardZ = Math.cos(vehicle.heading);
 
-  // Perpendicular right vector (for lateral sliding)
   const rightX = Math.cos(vehicle.heading);
   const rightZ = -Math.sin(vehicle.heading);
 
-  // Lateral drift slip: drifting reduces tire lateral grip, causing sideways slide
   if (vehicle.isDrifting && Math.abs(vehicle.steerAngle) > 0.15) {
-    // Slip velocity builds up opposite to steer direction
-    const slipTarget = -Math.sign(vehicle.steerAngle) * (speedMagnitude * 0.45);
+    const slipTarget = -Math.sign(vehicle.steerAngle) * (speedMagnitude * 0.48);
     vehicle.lateralSlip = THREE.MathUtils.lerp(vehicle.lateralSlip, slipTarget, 5.0 * dt);
   } else {
-    // Tires grip asphalt firmly, damping sideways slip quickly
     vehicle.lateralSlip = THREE.MathUtils.lerp(vehicle.lateralSlip, 0, 10.0 * dt);
   }
 
-  // Integrate position in world space
+  // Integrate position
   vehicle.position.x += (forwardX * vehicle.speed + rightX * vehicle.lateralSlip) * dt;
   vehicle.position.z += (forwardZ * vehicle.speed + rightZ * vehicle.lateralSlip) * dt;
 
-  // Update root group transform
+  // -----------------------------------------------------------
+  // F. TRACK BOUNDARY & BARRIER COLLISION
+  // -----------------------------------------------------------
+  const boundaryCheck = track.checkBoundaryCollision(vehicle.position);
+  if (boundaryCheck.collided) {
+    // Bounce off barrier!
+    vehicle.position.copy(boundaryCheck.correctedPos);
+    vehicle.speed *= 0.65; // Speed penalty
+    audio.playBarrierHitSound();
+  }
+
+  // Update root mesh transform
   rickshaw.group.position.copy(vehicle.position);
   rickshaw.group.rotation.y = vehicle.heading;
 
   // -----------------------------------------------------------
-  // E. 3-WHEEL TILT & LIVELY SUSPENSION DYNAMICS
+  // G. 3-WHEELER TILT & SUSPENSION DYNAMICS
   // -----------------------------------------------------------
-  // 1. Body Roll (Z-axis tilt):
-  // Real Indian auto-rickshaws have a high center of gravity and 3-wheel tripod footprint.
-  // When cornering hard at speed, the vehicle noticeably leans outward due to centrifugal force!
-  const rollIntensity = vehicle.isDrifting ? 0.32 : 0.22;
-  const targetRoll = - (vehicle.steerAngle / vehicle.maxSteerAngle) * (speedMagnitude / vehicle.maxSpeed) * rollIntensity;
+  const rollIntensity = vehicle.isDrifting ? 0.34 : 0.24;
+  const targetRoll =
+    -(vehicle.steerAngle / vehicle.maxSteerAngle) *
+    (speedMagnitude / vehicle.baseMaxSpeed) *
+    rollIntensity;
   vehicle.bodyRoll = THREE.MathUtils.lerp(vehicle.bodyRoll, targetRoll, 8.0 * dt);
 
-  // 2. Body Pitch (X-axis tilt):
-  // Nose dives forward when braking hard, and squats back slightly during acceleration
   let targetPitch = 0;
   if (isBrake && vehicle.speed > 1.0) {
-    targetPitch = 0.08; // Nose dives
+    targetPitch = 0.09; // Nose dips under braking
+  } else if (vehicle.isBoosting) {
+    targetPitch = -0.07; // Aggressive squat during boost!
   } else if (isGas && vehicle.speed < vehicle.maxSpeed * 0.8) {
-    targetPitch = -0.04; // Nose lifts
+    targetPitch = -0.04; // Nose lifts under acceleration
   }
 
-  // Road vibration wobble when traveling at speed
-  const bumpWobble = speedMagnitude > 2.0 ? Math.sin(clock.getElapsedTime() * 18.0) * 0.008 : 0;
+  const bumpWobble = speedMagnitude > 2.0 ? Math.sin(clock.getElapsedTime() * 20.0) * 0.009 : 0;
   vehicle.bodyPitch = THREE.MathUtils.lerp(vehicle.bodyPitch, targetPitch + bumpWobble, 7.0 * dt);
 
-  // Apply tilt to the rickshaw's body group
   rickshaw.tiltGroup.rotation.z = vehicle.bodyRoll;
   rickshaw.tiltGroup.rotation.x = vehicle.bodyPitch;
 
   // -----------------------------------------------------------
-  // F. WHEEL VISUAL ROTATION (SPIN WITH SPEED)
+  // H. WHEEL ROTATION & TIRE PARTICLES
   // -----------------------------------------------------------
-  // Wheel radius ~0.32m -> angular speed = linear speed / radius
   const wheelRadius = 0.32;
   const wheelSpinDelta = (vehicle.speed / wheelRadius) * dt;
-
   rickshaw.frontWheel.rotation.x += wheelSpinDelta;
   rickshaw.rearLeftWheel.rotation.x += wheelSpinDelta;
   rickshaw.rearRightWheel.rotation.x += wheelSpinDelta;
 
-  // -----------------------------------------------------------
-  // G. DRIFT SPARK EMISSION
-  // -----------------------------------------------------------
-  // Emit fiery yellow/orange sparks from the rear wheels when drifting or turning aggressively
+  const forwardVec = new THREE.Vector3(forwardX, 0, forwardZ);
+
+  // 1. Drift sparks from rear wheels
   if (vehicle.isDrifting || (speedMagnitude > 14.0 && Math.abs(vehicle.steerAngle) > 0.4)) {
-    // World positions of rear wheels
-    const forwardVec = new THREE.Vector3(forwardX, 0, forwardZ);
-    
-    // Left wheel contact point
-    const leftWheelPos = new THREE.Vector3(-0.66, 0.05, -0.65)
+    const leftWheelPos = new THREE.Vector3(-0.66, 0.06, -0.65)
       .applyAxisAngle(new THREE.Vector3(0, 1, 0), vehicle.heading)
       .add(vehicle.position);
 
-    // Right wheel contact point
-    const rightWheelPos = new THREE.Vector3(0.66, 0.05, -0.65)
+    const rightWheelPos = new THREE.Vector3(0.66, 0.06, -0.65)
       .applyAxisAngle(new THREE.Vector3(0, 1, 0), vehicle.heading)
       .add(vehicle.position);
 
-    // Emit 1-2 sparks per frame for crisp visual density
     sparkSystem.emitSpark(leftWheelPos, forwardVec);
     sparkSystem.emitSpark(rightWheelPos, forwardVec);
   }
 
-  // Update spark particles
+  // 2. Cyan Nitro flame particles from exhaust pipe
+  if (vehicle.isBoosting) {
+    const exhaustWorldPos = new THREE.Vector3(-0.45, 0.26, -1.45)
+      .applyAxisAngle(new THREE.Vector3(0, 1, 0), vehicle.heading)
+      .add(vehicle.position);
+
+    nitroFlameSystem.emitFlame(exhaustWorldPos, forwardVec);
+  }
+
   sparkSystem.update(dt, camera);
+  nitroFlameSystem.update(dt, camera);
 
   // -----------------------------------------------------------
-  // H. TRAFFIC CONE NUDGES & ARCADE BOUNCE
+  // I. CONE HAZARDS & FLYING COLLISION PHYSICS
   // -----------------------------------------------------------
-  coneDataList.forEach((cone) => {
-    // Distance from rickshaw center to cone
-    const distSq = vehicle.position.distanceToSquared(cone.mesh.position);
-    const hitRadius = 1.35; // Rickshaw boundary + cone base radius
+  track.trackCones.forEach((cone) => {
+    const dist = vehicle.position.distanceTo(cone.mesh.position);
+    const hitRadius = 1.4;
 
-    if (distSq < hitRadius * hitRadius) {
-      // Collision detected! Nudge cone outward
-      const nudgeDir = cone.mesh.position.clone().sub(vehicle.position).normalize();
-      
-      // Bump cone slightly along nudge direction
-      cone.mesh.position.addScaledVector(nudgeDir, 0.06);
+    if (dist < hitRadius && !cone.isAirborne) {
+      // Launch cone into the air!
+      cone.isAirborne = true;
+      audio.playConeHitSound();
 
-      // Give cone a fun arcade tilt velocity
-      cone.tiltVel.x += (Math.random() - 0.5) * 8.0;
-      cone.tiltVel.z += (Math.random() - 0.5) * 8.0;
-      cone.isHit = true;
-    }
+      const bumpDir = cone.mesh.position.clone().sub(vehicle.position).normalize();
+      const flingSpeed = 10.0 + speedMagnitude * 0.4;
 
-    // Cone spring physics if nudged
-    if (cone.isHit) {
-      cone.mesh.rotation.x += cone.tiltVel.x * dt;
-      cone.mesh.rotation.z += cone.tiltVel.z * dt;
+      cone.velocity.set(
+        bumpDir.x * flingSpeed,
+        12.0 + Math.random() * 4.0, // High vertical pop!
+        bumpDir.z * flingSpeed
+      );
 
-      // Spring back to upright with damping
-      cone.tiltVel.x -= cone.mesh.rotation.x * 25.0 * dt;
-      cone.tiltVel.z -= cone.mesh.rotation.z * 25.0 * dt;
-      cone.tiltVel.multiplyScalar(0.92);
+      cone.angularVelocity.set(
+        (Math.random() - 0.5) * 18.0,
+        (Math.random() - 0.5) * 18.0,
+        (Math.random() - 0.5) * 18.0
+      );
     }
   });
 
+  track.updateConesPhysics(dt);
+
   // -----------------------------------------------------------
-  // I. CHASE CAMERA & HUD
+  // J. CHECKPOINTS, SOUND & HUD
   // -----------------------------------------------------------
+  updateCheckpoints();
+  audio.updateEngine(vehicle.speed, vehicle.maxSpeed, isGas);
   updateChaseCamera(dt);
   updateHUD();
 
-  // Render final frame
   renderer.render(scene, camera);
 }
 
-// Start game loop once DOM is ready
+// Start Game Loop
 animate();
 
 // ----------------------------------------------------------------------------
@@ -533,4 +670,3 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
-
