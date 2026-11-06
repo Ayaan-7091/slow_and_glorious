@@ -808,7 +808,11 @@ function animate() {
   // I. LIVE RACE POSITION TRACKING (1st to 4th)
   // -----------------------------------------------------------
   const closestTrackPt = track.getClosestTrackPoint(vehicle.position);
-  raceState.playerTotalProgress = (raceState.currentLap - 1) * 1.0 + closestTrackPt.t;
+  let playerLapT = closestTrackPt.t;
+  if (raceState.currentLap === 1 && playerLapT > 0.85) {
+    playerLapT -= 1.0;
+  }
+  raceState.playerTotalProgress = (raceState.currentLap - 1) * 1.0 + playerLapT;
 
   const raceStandings = [
     { name: 'Player', progress: raceState.playerTotalProgress, isPlayer: true },

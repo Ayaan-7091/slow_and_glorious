@@ -159,6 +159,7 @@ export function createRivals(scene, trackCurve, trackWidth = 14.0, track = null)
     // Initial curve-space coordinates
     const initialT = (1.0 + cfg.gridLongitudinal / trackTotalLength) % 1.0;
     const initialLane = cfg.gridLateral;
+    const initialProgress = initialT > 0.85 ? (initialT - 1.0) : initialT;
 
     // Direct world position from curve
     const centerPt = trackCurve.getPointAt(initialT);
@@ -195,7 +196,8 @@ export function createRivals(scene, trackCurve, trackWidth = 14.0, track = null)
 
       // Track progress
       completedLaps: 0,
-      totalProgress: initialT,
+      hasReachedHalfway: false,
+      totalProgress: initialProgress,
 
       // Nitro boost
       isBoosting: false,
@@ -292,11 +294,19 @@ export function createRivals(scene, trackCurve, trackWidth = 14.0, track = null)
       const prevT = rival.t;
       rival.t = (rival.t + (rival.speed / trackTotalLength) * dt) % 1.0;
 
-      // Lap completion detection
-      if (prevT > 0.85 && rival.t < 0.15) {
-        rival.completedLaps++;
+      // Lap completion detection: requires passing through halfway (t > 0.45)
+      // to avoid triggering lap completion at the start grid
+      if (rival.t > 0.4 && rival.t < 0.6) {
+        rival.hasReachedHalfway = true;
       }
-      rival.totalProgress = rival.completedLaps * 1.0 + rival.t;
+      if (prevT > 0.85 && rival.t < 0.15 && rival.hasReachedHalfway) {
+        rival.completedLaps++;
+        rival.hasReachedHalfway = false;
+      }
+
+      // If on Lap 1 and still behind the start line, progress is negative
+      const lapT = (rival.completedLaps === 0 && rival.t > 0.85) ? (rival.t - 1.0) : rival.t;
+      rival.totalProgress = rival.completedLaps * 1.0 + lapT;
 
       // ----------------------------------------------------------------------
       // 5. STABLE LANE LOGIC (Centered around dedicated home lane)
@@ -502,7 +512,8 @@ export function createRivals(scene, trackCurve, trackWidth = 14.0, track = null)
       rival.targetLaneOffset = rival.initialLaneOffset;
       rival.speed = 0;
       rival.completedLaps = 0;
-      rival.totalProgress = rival.initialT;
+      rival.hasReachedHalfway = false;
+      rival.totalProgress = rival.initialT > 0.85 ? (rival.initialT - 1.0) : rival.initialT;
       rival.bodyRoll = 0;
       rival.bodyPitch = 0;
       rival.isBoosting = false;
