@@ -4,6 +4,8 @@ import { createTrack } from './createTrack.js';
 import { createRivals } from './createRivals.js';
 import { createEnvironment } from './createEnvironment.js';
 import { createBazaar } from './createBazaar.js';
+import { createStreetClutter } from './createStreetClutter.js';
+import { VoiceSystem } from './createVoiceSystem.js';
 import { SparkParticleSystem, NitroFlameSystem } from './particles.js';
 import { ControlsManager } from './controls.js';
 import { AudioManager } from './audio.js';
@@ -96,6 +98,30 @@ let lastConeSoundTime = 0;
 // ----------------------------------------------------------------------------
 const audio = new AudioManager();
 const controls = new ControlsManager(audio);
+
+// Desi Street Clutter & Voice Banter System (Sprint 5)
+const clutter = createStreetClutter(scene, track.trackCurve, track.trackWidth);
+const voiceSystem = new VoiceSystem(audio, scene, camera);
+
+// Intercept playHorn to trigger nearby rival AI voice reaction
+const originalPlayHorn = audio.playHorn.bind(audio);
+audio.playHorn = () => {
+  originalPlayHorn();
+  if (rivalsManager && rivalsManager.rivals && typeof vehicle !== 'undefined' && vehicle.position) {
+    let closestRival = null;
+    let closestDistSq = Infinity;
+    rivalsManager.rivals.forEach((r) => {
+      const distSq = vehicle.position.distanceToSquared(r.position);
+      if (distSq < closestDistSq) {
+        closestDistSq = distSq;
+        closestRival = r;
+      }
+    });
+    if (closestRival && Math.sqrt(closestDistSq) < 28) {
+      voiceSystem.triggerDialogue(closestRival.name, 'horn', closestRival.mesh);
+    }
+  }
+};
 
 const hudHornBtn = document.getElementById('btn-horn-hud');
 if (hudHornBtn) {
@@ -201,6 +227,8 @@ const raceState = {
   playerPosition: 1,
   playerTotalProgress: 0,
 };
+
+let lastOvertakeCheckPos = 4;
 
 // ----------------------------------------------------------------------------
 // 7. PRE-RACE DIFFICULTY SELECTOR & UI OVERLAYS
@@ -575,6 +603,9 @@ function checkVehicleCollisions() {
       );
       const forwardDir = new THREE.Vector3(Math.sin(vehicle.heading), 0, Math.cos(vehicle.heading));
       sparkSystem.emitSpark(contactPos, forwardDir);
+
+      // Trigger AI voice dialogue on bump
+      voiceSystem.triggerDialogue(r.name, 'collision', r.mesh);
     }
   }
 }
@@ -819,7 +850,31 @@ function animate() {
     ...rivalsManager.rivals.map((r) => ({ name: r.name, progress: r.totalProgress, isPlayer: false })),
   ].sort((a, b) => b.progress - a.progress);
 
-  raceState.playerPosition = raceStandings.findIndex((s) => s.isPlayer) + 1;
+  const newPlayerPos = raceStandings.findIndex((s) => s.isPlayer) + 1;
+
+  if (raceState.mode === 'RACING' && typeof lastOvertakeCheckPos !== 'undefined' && lastOvertakeCheckPos !== newPlayerPos) {
+    if (newPlayerPos < lastOvertakeCheckPos) {
+      // Player overtook someone!
+      const passed = raceStandings[newPlayerPos]; // Standing right behind player now
+      if (passed && !passed.isPlayer) {
+        const rivalObj = rivalsManager.rivals.find((r) => r.name === passed.name);
+        if (rivalObj) {
+          voiceSystem.triggerDialogue(rivalObj.name, 'overtaken', rivalObj.mesh);
+        }
+      }
+    } else if (newPlayerPos > lastOvertakeCheckPos) {
+      // Rival overtook player!
+      const passer = raceStandings[newPlayerPos - 2]; // Standing right ahead of player now
+      if (passer && !passer.isPlayer) {
+        const rivalObj = rivalsManager.rivals.find((r) => r.name === passer.name);
+        if (rivalObj) {
+          voiceSystem.triggerDialogue(rivalObj.name, 'overtake', rivalObj.mesh);
+        }
+      }
+    }
+  }
+  lastOvertakeCheckPos = newPlayerPos;
+  raceState.playerPosition = newPlayerPos;
 
   // -----------------------------------------------------------
   // J. 3-WHEELER TILT & SUSPENSION DYNAMICS
@@ -925,6 +980,8 @@ function animate() {
 
   updateChaseCamera(dt);
   updateHUD();
+
+  voiceSystem.update();
 
   renderer.render(scene, camera);
 }

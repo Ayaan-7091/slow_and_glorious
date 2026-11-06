@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createHornOkPleaseTexture } from './createStreetTextures.js';
 
 /**
  * createRickshaw
@@ -175,11 +176,24 @@ export function createRickshaw(options = {}) {
   engineBox.castShadow = true;
   tiltGroup.add(engineBox);
 
-  // Engine cooling louvers/slits texture effect on rear
-  const louverGeo = new THREE.BoxGeometry(0.8, 0.04, 0.02);
-  for (let i = 0; i < 4; i++) {
+  // Iconic "HORN OK PLEASE" & "बुरी नज़र वाले तेरा मुँह काला" Tailgate Plate
+  const hornPlateTex = createHornOkPleaseTexture();
+  const hornPlateMat = new THREE.MeshStandardMaterial({
+    map: hornPlateTex,
+    roughness: 0.4,
+    metalness: 0.1,
+  });
+  const hornPlateGeo = new THREE.PlaneGeometry(0.72, 0.22);
+  const hornPlate = new THREE.Mesh(hornPlateGeo, hornPlateMat);
+  hornPlate.position.set(0, 0.64, -1.385);
+  hornPlate.rotation.y = Math.PI; // Face rearwards towards chase camera
+  tiltGroup.add(hornPlate);
+
+  // Engine cooling louvers/slits beneath the plate
+  const louverGeo = new THREE.BoxGeometry(0.68, 0.03, 0.02);
+  for (let i = 0; i < 2; i++) {
     const louver = new THREE.Mesh(louverGeo, darkMetalMat);
-    louver.position.set(0, 0.52 + i * 0.08, -1.39);
+    louver.position.set(0, 0.44 + i * 0.06, -1.39);
     tiltGroup.add(louver);
   }
 

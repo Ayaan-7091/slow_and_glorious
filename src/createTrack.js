@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createAsphaltRoadTexture } from './createStreetTextures.js';
 
 /**
  * ============================================================================
@@ -128,12 +129,14 @@ export function createTrack(scene) {
     return geo;
   }
 
-  // 1. Road Surface Ribbon (Rich dark charcoal gray with polygonOffset)
+  // 1. Road Surface Ribbon (Procedural asphalt road with aggregate noise, tar patches, and oil stains)
   const roadGeo = buildRibbon(-halfWidth, halfWidth, 0.05, 0.05, null, 40.0);
+  const roadTexture = createAsphaltRoadTexture();
   const roadMat = new THREE.MeshStandardMaterial({
-    color: 0x2b2d38,
-    roughness: 0.85,
-    metalness: 0.1,
+    map: roadTexture,
+    color: 0xffffff,
+    roughness: 0.88,
+    metalness: 0.08,
     polygonOffset: true,
     polygonOffsetFactor: -1.0,
     polygonOffsetUnits: -1.0,

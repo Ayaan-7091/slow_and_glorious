@@ -1,4 +1,10 @@
 import * as THREE from 'three';
+import {
+  createBuildingFacadeTexture,
+  createDesiShopSignTexture,
+  createPissingFineStencilTexture,
+  createRetroBollywoodPosterTexture,
+} from './createStreetTextures.js';
 
 /**
  * ============================================================================
@@ -117,12 +123,23 @@ export function createBazaar(scene, trackCurve, trackWidth = 14.0) {
     roughness: 0.95,
   });
 
+  // Procedural Bazaar Textures (Facade damp plaster, authentic Hindi signboards & posters)
+  const facadeTextures = [0, 1, 2, 3, 4, 5].map((i) => createBuildingFacadeTexture(i));
+  const desiShopSignTextures = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => createDesiShopSignTexture(i));
+  const pissingStencilTex = createPissingFineStencilTexture();
+  const bollywoodPosterTextures = [0, 1, 2].map((i) => createRetroBollywoodPosterTexture(i));
+
   // Helper to create a single stylized shop-house building
   function createShopHouse(paletteIdx, heightStories = 2, signIdx = 0, width = 8.5) {
     const bldg = new THREE.Group();
     const p = buildingPalettes[paletteIdx % buildingPalettes.length];
+    const facadeTex = facadeTextures[paletteIdx % facadeTextures.length];
 
-    const wallMat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.85 });
+    const wallMat = new THREE.MeshStandardMaterial({
+      map: facadeTex,
+      roughness: 0.9,
+      metalness: 0.05,
+    });
     const trimMat = new THREE.MeshStandardMaterial({ color: p.trim, roughness: 0.75 });
 
     const depth = 7.0;
@@ -195,11 +212,35 @@ export function createBazaar(scene, trackCurve, trackWidth = 14.0) {
     awning.rotation.x = 0.22;
     bldg.add(awning);
 
-    // Glowing Signboard above the awning
+    // Authentic Desi Shop Signboard above the awning
     const signGeo = new THREE.PlaneGeometry(width * 0.75, 1.2);
-    const signTex = signTextures[signIdx % signTextures.length];
+    const signTex = desiShopSignTextures[signIdx % desiShopSignTextures.length];
     const signMat = new THREE.MeshBasicMaterial({ map: signTex });
     const signboard = new THREE.Mesh(signGeo, signMat);
+    signboard.position.set(0, 3.8, depth / 2 + 0.08);
+    bldg.add(signboard);
+
+    // Humorous Indian Wall Stencil ("यहाँ पेशाब करना सख्त मना है (Fine ₹500)")
+    if (paletteIdx % 3 === 0) {
+      const stencilGeo = new THREE.PlaneGeometry(2.6, 1.0);
+      const stencilMat = new THREE.MeshBasicMaterial({
+        map: pissingStencilTex,
+        transparent: true,
+      });
+      const stencilMesh = new THREE.Mesh(stencilGeo, stencilMat);
+      stencilMesh.position.set(width * 0.3, 0.65, depth / 2 + 0.06);
+      bldg.add(stencilMesh);
+    }
+
+    // Retro Bollywood Movie Poster (Sholay / Don / DDLJ)
+    if (paletteIdx % 2 === 1) {
+      const posterTex = bollywoodPosterTextures[paletteIdx % bollywoodPosterTextures.length];
+      const posterGeo = new THREE.PlaneGeometry(1.5, 2.1);
+      const posterMat = new THREE.MeshBasicMaterial({ map: posterTex });
+      const posterMesh = new THREE.Mesh(posterGeo, posterMat);
+      posterMesh.position.set(-width * 0.32, 2.3, depth / 2 + 0.06);
+      bldg.add(posterMesh);
+    }
     signboard.position.set(0, 3.8, depth / 2 + 0.08);
     bldg.add(signboard);
 

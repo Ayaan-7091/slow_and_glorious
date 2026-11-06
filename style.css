@@ -1122,3 +1122,120 @@ html, body {
 .start-race-btn:active {
   transform: translateY(1px);
 }
+
+/* ============================================================================
+   INDIAN RADIO CHATTER & COMIC SPEECH BANNER (Sprint 5)
+   ============================================================================ */
+.radio-chatter-banner {
+  position: fixed;
+  top: 108px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(16, 14, 24, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 2px solid rgba(255, 183, 3, 0.7);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 183, 3, 0.25);
+  border-radius: 20px;
+  padding: 12px 22px;
+  max-width: 580px;
+  width: 90%;
+  transition: opacity 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              transform 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none;
+}
+
+.radio-chatter-banner.hidden {
+  opacity: 0;
+  transform: translate(-50%, -24px) scale(0.92);
+}
+
+.radio-chatter-banner.visible {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.radio-badge-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.radio-avatar {
+  font-size: 32px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+  animation: radioWobble 1.2s infinite ease-in-out;
+}
+
+@keyframes radioWobble {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-6deg); }
+  75% { transform: rotate(6deg); }
+}
+
+.radio-pulse-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 0, 80, 0.25);
+  border: 1px solid rgba(255, 0, 80, 0.6);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff0055;
+  box-shadow: 0 0 8px #ff0055;
+  animation: pulseDot 1s infinite alternate ease-in-out;
+}
+
+@keyframes pulseDot {
+  0% { opacity: 0.4; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1.3); }
+}
+
+.pulse-label {
+  font-size: 8px;
+  font-weight: 900;
+  color: #ff85a2;
+  letter-spacing: 1px;
+}
+
+.radio-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+}
+
+.radio-speaker-tag {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.radio-hindi-text {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff3bf;
+  line-height: 1.35;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.3px;
+}
+
+.radio-english-sub {
+  font-size: 12px;
+  font-style: italic;
+  color: #ced4da;
+  line-height: 1.3;
+}
