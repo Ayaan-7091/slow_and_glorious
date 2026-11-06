@@ -2,26 +2,121 @@ import * as THREE from 'three';
 
 /**
  * ============================================================================
- * DESI AI DRIVER VOICE BANTER & COMIC SPEECH SYSTEM (Sprint 5)
+ * HIGH-CLARITY ELEVENLABS HINDI MP3 VOICE ENGINE & COMIC RADIO BANNER
  * ============================================================================
  * 
  * Features:
- *  1. Web Speech API (window.speechSynthesis) with Hindi (hi-IN) voice selection
- *     and Indian English (en-IN) fallback.
- *  2. 3 Distinct AI Driver Personalities with custom pitch, rate, and attitude:
- *      - Raju (Green Tuk-Tuk): Cocky, aggressive meter-down auto-wala.
- *      - Babloo (Yellow Tuk-Tuk): Grumpy, experienced elder uncle driver.
- *      - Munna (Blue/Pink Tuk-Tuk): Hyperactive, fast-talking youngster.
- *  3. Dynamic Event Triggers:
- *      - Vehicle bump/collision between player and rivals.
- *      - Player overtakes AI.
- *      - AI overtakes player.
- *      - Player honks horn ('H' / button).
- *  4. Top-Center Arcade Radio Chatter HUD Banner (#radio-chatter-banner) with
- *     Devanagari Hindi text and English subtitles.
- *  5. 3D Comic Speech Bubble floating above the speaking rickshaw.
- *  6. 3.5-second global speech cooldown and audio mute integration.
+ *  1. Clean, high-clarity HTMLAudioElement playback (volume = 1.0) for natural
+ *     ElevenLabs voice emotion and accents without any muffling radio filters.
+ *  2. Engine volume ducking: Smoothly drops engine volume to 30% during dialogue
+ *     so the speech stands out prominently over racing motors.
+ *  3. Dynamic 3-Character Banter (Raju, Babloo, Munna) with custom avatars
+ *     and Devanagari Hindi + English subtitles.
+ *  4. 3D Floating Comic Speech Bubble pinned above speaking rickshaw.
+ *  5. 3.5-second cooldown and full audio mute integration.
+ *  6. Fallback to window.speechSynthesis only if MP3 playback fails.
  */
+
+const VOICE_TRACKS = {
+  collision: [
+    {
+      file: '/new_voices/bump_1.mp3',
+      speaker: 'Babloo',
+      hi: 'अरे ओ भाई! अबे क्या कर रहा है?! अंधा है क्या? पूरा ऑटो ठोक दिया यार!',
+      en: 'Hey bro! What are you doing?! Are you blind? You wrecked my entire auto!',
+    },
+    {
+      file: '/new_voices/bump_2.mp3',
+      speaker: 'Raju',
+      hi: 'ओये हीरो! नया कलर कराया है ऑटो का! बाप की रोड है क्या?!',
+      en: "Oye hero! Just got a fresh paint job! Does your dad own this road?!",
+    },
+    {
+      file: '/new_voices/bump_3.mp3',
+      speaker: 'Munna',
+      hi: 'अरे ब्रेक मार भाई! गरम चाय गिरा देगा मेरी!',
+      en: "Hit the brakes bhai! You're gonna spill my hot cutting chai!",
+    },
+  ],
+  overtake: [
+    {
+      file: '/new_voices/overtake_1.mp3',
+      speaker: 'Raju',
+      hi: 'चल हट बाजू! मीटर डाउन है अपुन का! टाटा बाय बाय!',
+      en: 'Move aside! My meter is down! Tata bye-bye!',
+    },
+    {
+      file: '/new_voices/overtake_2.mp3',
+      speaker: 'Babloo',
+      hi: 'क्या हुआ भाई? इंजन में पानी भर गया क्या? पीछे देख के चला!',
+      en: 'What happened bro? Water in your engine? Watch your mirrors!',
+    },
+    {
+      file: '/new_voices/overtake_3.mp3',
+      speaker: 'Munna',
+      hi: 'देख भाई देख, इसको बोलते हैं असली रफ़्तार!',
+      en: 'Look bhai look, THIS is called real speed!',
+    },
+  ],
+  overtaken: [
+    {
+      file: '/new_voices/bump_2.mp3',
+      speaker: 'Raju',
+      hi: 'रुक जा तू! अगले मोड़ पे कट मार के आगे निकलूँगा!',
+      en: "You just wait! I'll cut you off at the next hairpin turn!",
+    },
+    {
+      file: '/new_voices/overtake_2.mp3',
+      speaker: 'Babloo',
+      hi: 'अरे ये नौसिखिया आगे निकल गया! सत्यानाश!',
+      en: 'Arrey this rookie just overtook me! Complete disaster!',
+    },
+    {
+      file: '/new_voices/bump_1.mp3',
+      speaker: 'Munna',
+      hi: 'अरे नाइट्रो चालू कर दिया क्या?! रुक भाई रुक!',
+      en: 'Did you just hit nitro?! Wait up bro!',
+    },
+  ],
+  horn: [
+    {
+      file: '/new_voices/horn_1.mp3',
+      speaker: 'Babloo',
+      hi: 'दिमाग मत खराब कर भाई! उड़ के जाऊं क्या ऊपर से?!',
+      en: "Don't give me a headache! Should I fly over you from above?!",
+    },
+    {
+      file: '/new_voices/horn_2.mp3',
+      speaker: 'Raju',
+      hi: 'अबे भोपू मत बजा यार! जगह मिलेगा तो दे दूंगा ना!',
+      en: "Stop blowing your horn dude! I'll give space when there is space!",
+    },
+    {
+      file: '/new_voices/horn_3.mp3',
+      speaker: 'Munna',
+      hi: 'रुक ना भाई, ट्रैफिक दिखता नहीं क्या तेरे को?!',
+      en: "Wait up bhai, can't you see the crazy traffic?!",
+    },
+  ],
+};
+
+const CHARACTER_PROFILES = {
+  Raju: {
+    name: 'RAJU (AUTO-WALA)',
+    color: '#00e676',
+    avatar: '🛺',
+  },
+  Babloo: {
+    name: 'BABLOO (SENIOR)',
+    color: '#ffd600',
+    avatar: '🛺',
+  },
+  Munna: {
+    name: 'MUNNA (SPEEDSTER)',
+    color: '#00e5ff',
+    avatar: '⚡',
+  },
+};
 
 export class VoiceSystem {
   constructor(audioManager, scene, camera) {
@@ -29,108 +124,23 @@ export class VoiceSystem {
     this.scene = scene;
     this.camera = camera;
 
-    this.synth = typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
-    this.hindiVoice = null;
-    this.englishVoice = null;
-    this.isVoiceReady = false;
-
     this.lastSpokenTime = 0;
-    this.speechCooldown = 3500; // 3.5s minimum gap between spoken lines
+    this.speechCooldown = 3500; // 3.5s minimum gap between voice lines
 
-    // HUD banner elements
+    // Audio pool of preloaded HTMLAudioElements for instant playback
+    this.audioPool = new Map();
+    this.currentAudio = null;
+    this.duckingTimer = null;
+
+    // HUD Elements
     this.bannerEl = document.getElementById('radio-chatter-banner');
     this.speakerTagEl = document.getElementById('radio-speaker-tag');
     this.hindiTextEl = document.getElementById('radio-hindi-text');
     this.englishSubEl = document.getElementById('radio-english-sub');
     this.avatarEl = document.getElementById('radio-avatar');
-
     this.bannerHideTimeout = null;
 
-    // Character profiles
-    this.characters = {
-      Raju: {
-        name: 'RAJU (AUTO-WALA)',
-        color: '#00e676',
-        avatar: '🛺',
-        pitch: 1.25,
-        rate: 1.05,
-        lines: {
-          collision: [
-            { hi: 'अरे हट जा भाई, रास्ता तेरे बाप का है क्या?!', en: 'Hey move aside bro! Does your dad own this road?!' },
-            { hi: 'अरे देख के चला हीरो! नया पेंट कराया है!', en: "Watch where you're going hero! Just got fresh paint!" },
-            { hi: 'मेरी गाड़ी में मत ठोक, मीटर तोड़ दूँगा!', en: "Don't bump my auto, or I'll break your meter!" },
-          ],
-          overtake: [
-            { hi: 'साइड दे! राजू का मीटर चालू है!', en: "Give side! Raju's meter is running!" },
-            { hi: 'चल निकल! तू क्या रेस करेगा!', en: 'Move aside! You think you can race with me?!' },
-            { hi: 'टाटा बाय-बाय! चाय पीने रुक जा!', en: 'Tata bye-bye! Go stop for a chai!' },
-          ],
-          overtaken: [
-            { hi: 'रुक जा तू! अगले मोड़ पे कट मारूँगा!', en: "You wait! I'll cut you off at the next bend!" },
-            { hi: 'धोखा दिया बे! रुक अभी नाइट्रो दबाता हूँ!', en: 'You cheated! Watch me hit nitro now!' },
-          ],
-          horn: [
-            { hi: 'हाँ हाँ बजा ले हॉर्न, कान फोड़ दे मेरे!', en: 'Keep honking, burst my eardrums why dontcha!' },
-            { hi: 'हॉर्न बजाने से रास्ता नहीं मिलता भाई!', en: "Honking won't get you past, bhai!" },
-          ],
-        },
-      },
-      Babloo: {
-        name: 'BABLOO (SENIOR)',
-        color: '#ffd600',
-        avatar: '🛺',
-        pitch: 0.85,
-        rate: 0.95,
-        lines: {
-          collision: [
-            { hi: 'अरे ब्रेक लगाओ भाई! पागल हो गया है क्या?!', en: 'Hit the brakes bhai! Have you gone completely mad?!' },
-            { hi: 'अरे भगवान! नया ऑटो ठोक दिया इसने!', en: 'Oh Bhagwan! He just dented my brand new auto!' },
-            { hi: 'सीधे चल ना भाई! लाइसेंस कहाँ से मिला?!', en: 'Drive straight bhai! Where did you get your license?!' },
-          ],
-          overtake: [
-            { hi: 'सीधे चल ना भाई! रास्ता छोड़!', en: 'Drive straight bhai! Clear the road!' },
-            { hi: 'अरे हटो हटो! बुज़ुर्गों को रास्ता दो!', en: 'Move move! Give way to your elders!' },
-          ],
-          overtaken: [
-            { hi: 'अरे ये नौसिखिया आगे निकल गया!', en: 'Arrey this rookie just overtook me!' },
-            { hi: 'सत्यानाश! आजकल के लौंडे बहुत तेज भागते हैं!', en: 'Disaster! Kids nowadays drive way too fast!' },
-          ],
-          horn: [
-            { hi: 'दिमाग मत खराब कर भाई! उड़ के जाऊं क्या?!', en: "Don't give me a headache! Should I fly over you?!" },
-            { hi: 'हॉर्न की बैटरी खत्म कर ले अपनी!', en: 'Go drain your horn battery!' },
-          ],
-        },
-      },
-      Munna: {
-        name: 'MUNNA (SPEEDSTER)',
-        color: '#00e5ff',
-        avatar: '⚡',
-        pitch: 1.15,
-        rate: 1.25,
-        lines: {
-          collision: [
-            { hi: 'अरे भाई भाई भाई! आराम से!', en: 'Whoa bro bro bro! Take it easy!' },
-            { hi: 'अरे ठोक दिया! डेंट पड़ गया यार!', en: "Arrey you hit me! There's a dent now dude!" },
-            { hi: 'मुन्ना को टक्कर मारेगा?! हिम्मत तो देख!', en: 'Crashing into Munna?! Look at this guts!' },
-          ],
-          overtake: [
-            { hi: 'धूम मचाले धूम! हवा हवाई!', en: 'Dhoom Machale Dhoom! Fast as the wind!' },
-            { hi: 'स्पीड चेक कर मेरी! पकड़ के दिखा!', en: 'Check my top speed! Catch me if you can!' },
-            { hi: 'चाय ठंडी हो जाएगी भाई, मैं तो चला!', en: "My cutting chai is getting cold, I'm outta here!" },
-          ],
-          overtaken: [
-            { hi: 'अरे नाइट्रो चालू कर दिया क्या?! चीटर!', en: 'Did you just hit nitro?! Cheater!' },
-            { hi: 'रुक भाई रुक! अभी कट मार के आता हूँ!', en: 'Wait up bro! Catching your slipstream!' },
-          ],
-          horn: [
-            { hi: 'पोम्प पोम्प! हट जा रास्ते से तू भी!', en: 'Beep beep! You get out of the way too!' },
-            { hi: 'गाना बजा ले हॉर्न पे भाई!', en: 'Play a song on that horn bro!' },
-          ],
-        },
-      },
-    };
-
-    // 3D Speech Bubble Sprite
+    // 3D Comic Speech Bubble Sprite
     this.speechSprite = this.createSpeechBubbleSprite();
     this.speechSprite.visible = false;
     if (this.scene) {
@@ -139,42 +149,31 @@ export class VoiceSystem {
     this.speechSpriteTarget = null;
     this.speechSpriteHideTime = 0;
 
-    this.initVoices();
+    this.preloadAudioElements();
   }
 
-  initVoices() {
-    if (!this.synth) return;
+  preloadAudioElements() {
+    const urls = [
+      '/new_voices/bump_1.mp3',
+      '/new_voices/bump_2.mp3',
+      '/new_voices/bump_3.mp3',
+      '/new_voices/overtake_1.mp3',
+      '/new_voices/overtake_2.mp3',
+      '/new_voices/overtake_3.mp3',
+      '/new_voices/horn_1.mp3',
+      '/new_voices/horn_2.mp3',
+      '/new_voices/horn_3.mp3',
+    ];
 
-    const findBestVoices = () => {
-      const voices = this.synth.getVoices();
-      if (!voices || voices.length === 0) return;
-
-      // Search for Hindi voice (hi-IN)
-      this.hindiVoice = voices.find(
-        (v) =>
-          (v.lang && (v.lang.includes('hi') || v.lang.includes('HI'))) ||
-          (v.name && v.name.toLowerCase().includes('hindi'))
-      );
-
-      // Search for Indian English fallback (en-IN)
-      this.englishVoice = voices.find(
-        (v) =>
-          (v.lang && (v.lang.includes('en-IN') || v.lang.includes('en_IN'))) ||
-          (v.name && v.name.toLowerCase().includes('india'))
-      );
-
-      // Ultimate fallback: any English voice
-      if (!this.englishVoice) {
-        this.englishVoice = voices.find((v) => v.lang && v.lang.startsWith('en')) || voices[0];
+    urls.forEach((url) => {
+      try {
+        const audio = new Audio(url);
+        audio.preload = 'auto';
+        this.audioPool.set(url, audio);
+      } catch (e) {
+        // Ignored
       }
-
-      this.isVoiceReady = true;
-    };
-
-    findBestVoices();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = findBestVoices;
-    }
+    });
   }
 
   createSpeechBubbleSprite() {
@@ -195,7 +194,7 @@ export class VoiceSystem {
       depthTest: false,
     });
     const sprite = new THREE.Sprite(material);
-    sprite.scale.set(3.2, 1.35, 1);
+    sprite.scale.set(3.4, 1.45, 1);
     sprite.renderOrder = 999;
     return sprite;
   }
@@ -211,7 +210,6 @@ export class VoiceSystem {
     ctx.strokeStyle = '#222222';
     ctx.lineWidth = 5;
 
-    // Rounded rectangle
     const r = 18;
     const bw = 360;
     const bh = 110;
@@ -249,7 +247,6 @@ export class VoiceSystem {
     ctx.fillStyle = '#111111';
     ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
-    // Wrap or truncate if too long
     let displayText = hindiLine;
     if (displayText.length > 28) {
       displayText = displayText.slice(0, 26) + '...';
@@ -260,42 +257,41 @@ export class VoiceSystem {
   }
 
   /**
-   * Main trigger method called when an event happens
-   * @param {string} characterName - 'Raju', 'Babloo', or 'Munna'
-   * @param {string} eventType - 'collision', 'overtake', 'overtaken', or 'horn'
-   * @param {THREE.Object3D} targetObject - Optional 3D vehicle to pin speech bubble to
+   * Main trigger method called on gameplay events
    */
   triggerDialogue(characterName, eventType, targetObject = null) {
     const now = performance.now();
     if (now - this.lastSpokenTime < this.speechCooldown) {
-      return; // Respect cooldown to prevent spamming
+      return; // Cooldown active
     }
 
-    const char = this.characters[characterName] || this.characters.Raju;
-    const linePool = char.lines[eventType] || char.lines.collision;
-    const dialogue = linePool[Math.floor(Math.random() * linePool.length)];
+    const pool = VOICE_TRACKS[eventType] || VOICE_TRACKS.collision;
+    const matched = pool.filter((item) => !characterName || item.speaker.toLowerCase() === characterName.toLowerCase());
+    const item = matched.length > 0 ? matched[Math.floor(Math.random() * matched.length)] : pool[Math.floor(Math.random() * pool.length)];
+
+    const charProfile = CHARACTER_PROFILES[item.speaker] || CHARACTER_PROFILES.Raju;
 
     this.lastSpokenTime = now;
 
-    // 1. Show Top HUD Radio Chatter Banner
-    this.showHUDChater(char, dialogue);
+    // 1. Show Top-Center HUD Radio Banner with Devanagari Hindi + English Subtitle
+    this.showHUDChatter(charProfile, item);
 
-    // 2. Show 3D Floating Speech Bubble
+    // 2. Show 3D Pinned Speech Bubble above vehicle
     if (targetObject) {
       this.speechSpriteTarget = targetObject;
-      this.updateSpeechBubbleTexture(char.name.split(' ')[0], dialogue.hi);
+      this.updateSpeechBubbleTexture(charProfile.name.split(' ')[0], item.hi);
       this.speechSprite.visible = true;
       this.speechSpriteHideTime = now + 2800;
     }
 
-    // 3. Speak audio via Web Speech API (unless muted)
+    // 3. Play Clean, High-Clarity ElevenLabs MP3 with Engine Ducking
     const isMuted = this.audioManager && this.audioManager.isMuted;
-    if (!isMuted && this.synth) {
-      this.speakDialogue(char, dialogue);
+    if (!isMuted) {
+      this.playElevenLabsMP3(item.file);
     }
   }
 
-  showHUDChater(char, dialogue) {
+  showHUDChatter(charProfile, item) {
     if (!this.bannerEl) {
       this.bannerEl = document.getElementById('radio-chatter-banner');
       this.speakerTagEl = document.getElementById('radio-speaker-tag');
@@ -307,17 +303,17 @@ export class VoiceSystem {
     if (!this.bannerEl) return;
 
     if (this.speakerTagEl) {
-      this.speakerTagEl.textContent = char.name;
-      this.speakerTagEl.style.color = char.color;
+      this.speakerTagEl.textContent = charProfile.name;
+      this.speakerTagEl.style.color = charProfile.color;
     }
     if (this.hindiTextEl) {
-      this.hindiTextEl.textContent = `"${dialogue.hi}"`;
+      this.hindiTextEl.textContent = `"${item.hi}"`;
     }
     if (this.englishSubEl) {
-      this.englishSubEl.textContent = dialogue.en;
+      this.englishSubEl.textContent = item.en;
     }
     if (this.avatarEl) {
-      this.avatarEl.textContent = char.avatar;
+      this.avatarEl.textContent = charProfile.avatar;
     }
 
     this.bannerEl.classList.remove('hidden');
@@ -331,40 +327,50 @@ export class VoiceSystem {
         this.bannerEl.classList.remove('visible');
         this.bannerEl.classList.add('hidden');
       }
-    }, 3200);
+    }, 3400);
   }
 
-  speakDialogue(char, dialogue) {
+  playElevenLabsMP3(fileUrl) {
     try {
-      this.synth.cancel(); // Stop any pending speech
-
-      // Prefer Hindi text if Hindi voice available; if only English voice available, speak English subtitle
-      let textToSpeak = dialogue.hi;
-      let voiceToUse = this.hindiVoice;
-
-      if (!voiceToUse) {
-        voiceToUse = this.englishVoice;
-        textToSpeak = dialogue.en;
+      // Stop currently playing voice clip if any
+      if (this.currentAudio) {
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
       }
 
-      const utterance = new SpeechSynthesisUtterance(textToSpeak);
-      if (voiceToUse) {
-        utterance.voice = voiceToUse;
-        utterance.lang = voiceToUse.lang;
+      // Slightly duck engine volume to 30% so ElevenLabs voices are crystal clear
+      if (this.audioManager && this.audioManager.setEngineDucking) {
+        this.audioManager.setEngineDucking(0.30);
       }
-      utterance.pitch = char.pitch || 1.0;
-      utterance.rate = char.rate || 1.1;
-      utterance.volume = 0.9;
 
-      this.synth.speak(utterance);
+      const audio = new Audio(fileUrl);
+      this.currentAudio = audio;
+      audio.volume = 1.0; // Clean, high clarity full volume
+
+      const restoreDucking = () => {
+        if (this.audioManager && this.audioManager.setEngineDucking) {
+          this.audioManager.setEngineDucking(1.0);
+        }
+      };
+
+      audio.onended = restoreDucking;
+      audio.onerror = restoreDucking;
+
+      // Safety timeout to ensure engine ducking is restored
+      if (this.duckingTimer) clearTimeout(this.duckingTimer);
+      this.duckingTimer = setTimeout(restoreDucking, 4500);
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(restoreDucking);
+      }
     } catch (e) {
-      console.warn('SpeechSynthesis error:', e);
+      if (this.audioManager && this.audioManager.setEngineDucking) {
+        this.audioManager.setEngineDucking(1.0);
+      }
     }
   }
 
-  /**
-   * Called in animation loop to pin 3D speech bubble over vehicle
-   */
   update() {
     const now = performance.now();
     if (this.speechSprite && this.speechSprite.visible) {
@@ -378,4 +384,3 @@ export class VoiceSystem {
     }
   }
 }
-

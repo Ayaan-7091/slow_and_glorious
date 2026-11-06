@@ -1239,3 +1239,211 @@ html, body {
   color: #ced4da;
   line-height: 1.3;
 }
+
+/* ============================================================================
+   LAP SELECTOR & ARCADE PODIUM CELEBRATION (Sprint 9)
+   ============================================================================ */
+.lap-selector-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.lap-selector-label {
+  font-size: 11px;
+  font-weight: 900;
+  color: #ffb703;
+  letter-spacing: 1.5px;
+  text-align: left;
+}
+
+.lap-options-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.lap-option-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: #e0e0e0;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 10px 4px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.15s ease;
+}
+
+.lap-option-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.lap-option-btn.selected {
+  background: rgba(0, 240, 255, 0.18);
+  border-color: #00f0ff;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+}
+
+/* Confetti Canvas Behind Podium Card */
+.confetti-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 125;
+}
+
+/* Podium Card Container */
+.podium-card {
+  max-width: 540px !important;
+  z-index: 130;
+  position: relative;
+}
+
+/* 3-Tier Visual Podium Stage */
+.podium-stage {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin: 10px 0 16px 0;
+  padding: 0 10px;
+}
+
+.podium-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.podium-racer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.podium-avatar {
+  font-size: 28px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+
+.podium-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: #e2e8f0;
+  text-transform: uppercase;
+  max-width: 95px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 1st Place Winner Glow */
+.podium-racer.winner .winner-avatar {
+  font-size: 38px;
+  animation: winnerBob 1.6s infinite ease-in-out;
+}
+
+.podium-racer.winner .podium-crown {
+  font-size: 20px;
+  animation: crownSpin 3s infinite linear;
+}
+
+.podium-name.winner-name {
+  color: #ffd700;
+  font-size: 13px;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+@keyframes winnerBob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(1.05); }
+}
+
+@keyframes crownSpin {
+  0% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+  100% { transform: rotate(-5deg); }
+}
+
+/* Podium Step Blocks */
+.podium-block {
+  width: 100%;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.block-1 {
+  height: 95px;
+  background: linear-gradient(180deg, #ffb703, #e85d04);
+  border: 2px solid #ffe600;
+  box-shadow: 0 0 25px rgba(255, 183, 3, 0.45);
+}
+
+.block-2 {
+  height: 70px;
+  background: linear-gradient(180deg, #adb5bd, #495057);
+  border: 2px solid #ced4da;
+}
+
+.block-3 {
+  height: 52px;
+  background: linear-gradient(180deg, #d48b52, #7f4f24);
+  border: 2px solid #e09f67;
+}
+
+.podium-pos {
+  font-size: 24px;
+  color: #ffffff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+.podium-medal {
+  font-size: 16px;
+  margin-top: -2px;
+}
+
+/* Podium Action Buttons */
+.podium-actions-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.podium-primary-btn {
+  flex: 1.3;
+}
+
+.podium-secondary-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+}
+
+.podium-secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #00f0ff;
+  color: #00f0ff;
+}

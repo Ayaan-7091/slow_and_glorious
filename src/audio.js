@@ -25,6 +25,7 @@ export class AudioManager {
     this.engineGain = null;
     this.engineFilter = null;
     this.isEngineRunning = false;
+    this.engineDuckingFactor = 1.0;
 
     // Boost sound nodes
     this.boostNoiseGain = null;
@@ -110,9 +111,16 @@ export class AudioManager {
     const cutoff = 240 + ratio * 480 + (isThrottle ? 120 : 0);
     this.engineFilter.frequency.setTargetAtTime(cutoff, now, 0.08);
 
-    // Engine volume: gentle idle hum, louder on throttle
-    const targetVolume = isThrottle ? 0.12 : 0.06;
+    // Engine volume: gentle idle hum, louder on throttle (with ducking support for voice banter)
+    const targetVolume = (isThrottle ? 0.12 : 0.06) * this.engineDuckingFactor;
     this.engineGain.gain.setTargetAtTime(targetVolume, now, 0.1);
+  }
+
+  setEngineDucking(factor = 1.0) {
+    this.engineDuckingFactor = Math.max(0.0, Math.min(1.0, factor));
+    if (this.engineGain && this.ctx) {
+      this.engineGain.gain.setTargetAtTime(this.engineGain.gain.value * this.engineDuckingFactor, this.ctx.currentTime, 0.05);
+    }
   }
 
   /**

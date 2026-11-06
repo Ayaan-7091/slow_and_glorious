@@ -5,8 +5,9 @@ import { createRivals } from './createRivals.js';
 import { createEnvironment } from './createEnvironment.js';
 import { createBazaar } from './createBazaar.js';
 import { createStreetClutter } from './createStreetClutter.js';
+import { createObstacles } from './createObstacles.js';
 import { VoiceSystem } from './createVoiceSystem.js';
-import { SparkParticleSystem, NitroFlameSystem } from './particles.js';
+import { SparkParticleSystem, NitroFlameSystem, TireSmokeSystem } from './particles.js';
 import { ControlsManager } from './controls.js';
 import { AudioManager } from './audio.js';
 
@@ -83,9 +84,10 @@ sunLight.target = sunTarget;
 // ----------------------------------------------------------------------------
 // 3. SKY DOME, TERRAIN & INDIAN BAZAAR STREETSCAPE
 // ----------------------------------------------------------------------------
-const environment = createEnvironment(scene);
 const track = createTrack(scene);
+const environment = createEnvironment(scene, track.trackCurve);
 const bazaar = createBazaar(scene, track.trackCurve, track.trackWidth);
+const obstacles = createObstacles(scene, track.trackCurve, track.trackWidth);
 const rivalsManager = createRivals(scene, track.trackCurve, track.trackWidth, track);
 
 // Audio collision cooldown timers to eliminate sound stutter
@@ -103,10 +105,13 @@ const controls = new ControlsManager(audio);
 const clutter = createStreetClutter(scene, track.trackCurve, track.trackWidth);
 const voiceSystem = new VoiceSystem(audio, scene, camera);
 
-// Intercept playHorn to trigger nearby rival AI voice reaction
+// Intercept playHorn to trigger nearby rival AI voice reaction & cow reaction
 const originalPlayHorn = audio.playHorn.bind(audio);
 audio.playHorn = () => {
   originalPlayHorn();
+  if (obstacles && obstacles.reactToHorn) {
+    obstacles.reactToHorn();
+  }
   if (rivalsManager && rivalsManager.rivals && typeof vehicle !== 'undefined' && vehicle.position) {
     let closestRival = null;
     let closestDistSq = Infinity;
@@ -152,9 +157,10 @@ headlightTarget.position.set(0, 0.1, 9.0);
 rickshaw.frontForkGroup.add(headlightTarget);
 headlightBeam.target = headlightTarget;
 
-// Particle systems: Tire drift sparks + Garam Chai Nitro exhaust flames
+// Particle systems: Tire drift sparks + Garam Chai Nitro flames + Billowy Tire Smoke
 const sparkSystem = new SparkParticleSystem(scene, 90);
 const nitroFlameSystem = new NitroFlameSystem(scene, 60);
+const tireSmokeSystem = new TireSmokeSystem(scene, 90);
 
 // ----------------------------------------------------------------------------
 // 6. STAGGERED STARTING GRID & VEHICLE STATE
@@ -177,6 +183,7 @@ const vehicle = {
 
   // Speed & Accelerations
   speed: 0,
+  verticalVelocity: 0,
   baseMaxSpeed: 25.0, // m/s (~90 km/h)
   boostMaxSpeed: 38.0, // m/s (~136 km/h)
   maxSpeed: 25.0,
@@ -248,6 +255,20 @@ const finishTotalTimeEl = document.getElementById('finish-total-time');
 const finishBestLapEl = document.getElementById('finish-best-lap');
 const finishLeaderboardListEl = document.getElementById('finish-leaderboard-list');
 const restartBtn = document.getElementById('btn-restart-race');
+
+// Lap Selector (Sprint 9)
+const lapOptionBtns = document.querySelectorAll('.lap-option-btn');
+lapOptionBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    lapOptionBtns.forEach((b) => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    const laps = parseInt(btn.getAttribute('data-laps'), 10) || 3;
+    raceState.totalLaps = laps;
+    if (lapValueEl) {
+      lapValueEl.textContent = `${raceState.currentLap} / ${raceState.totalLaps}`;
+    }
+  });
+});
 
 // Difficulty Option selection
 diffOptions.forEach((btn) => {
@@ -330,6 +351,7 @@ function startRaceCountdown() {
 
   // Reset UI
   if (finishModalEl) finishModalEl.classList.add('hidden');
+  stopConfetti();
   if (countdownOverlayEl) {
     countdownOverlayEl.classList.remove('hidden');
     countdownTextEl.textContent = '3';
@@ -340,6 +362,7 @@ function startRaceCountdown() {
 if (restartBtn) {
   restartBtn.addEventListener('click', (e) => {
     e.preventDefault();
+    stopConfetti();
     if (finishModalEl) finishModalEl.classList.add('hidden');
     if (difficultyModalEl) difficultyModalEl.classList.remove('hidden');
   });
@@ -415,6 +438,66 @@ function updateCheckpoints() {
   }
 }
 
+// Confetti Animation Controller (Sprint 9)
+let confettiAnimId = null;
+
+function startConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  if (!canvas) return;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  const pieces = [];
+  const colors = ['#ffd700', '#ff0055', '#00f0ff', '#38b000', '#ff9e00', '#9d4edd', '#ffffff'];
+
+  for (let i = 0; i < 110; i++) {
+    pieces.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * -canvas.height,
+      w: 6 + Math.random() * 8,
+      h: 10 + Math.random() * 8,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vx: (Math.random() - 0.5) * 2.8,
+      vy: 2.2 + Math.random() * 3.8,
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.12,
+    });
+  }
+
+  function renderConfetti() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach((p) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.rotSpeed;
+      if (p.y > canvas.height) {
+        p.y = -15;
+        p.x = Math.random() * canvas.width;
+      }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    confettiAnimId = requestAnimationFrame(renderConfetti);
+  }
+  renderConfetti();
+}
+
+function stopConfetti() {
+  if (confettiAnimId) {
+    cancelAnimationFrame(confettiAnimId);
+    confettiAnimId = null;
+  }
+  const canvas = document.getElementById('confetti-canvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
 function showRaceFinishedModal() {
   if (!finishModalEl) return;
 
@@ -434,6 +517,14 @@ function showRaceFinishedModal() {
     ...rivalsManager.rivals.map((r) => ({ name: r.name, progress: r.totalProgress, isPlayer: false })),
   ].sort((a, b) => b.progress - a.progress);
 
+  // Populate 3-Tier Visual Podium
+  const pName1 = document.getElementById('podium-name-1');
+  const pName2 = document.getElementById('podium-name-2');
+  const pName3 = document.getElementById('podium-name-3');
+  if (pName1 && standings[0]) pName1.textContent = standings[0].name;
+  if (pName2 && standings[1]) pName2.textContent = standings[1].name;
+  if (pName3 && standings[2]) pName3.textContent = standings[2].name;
+
   finishLeaderboardListEl.innerHTML = '';
   standings.forEach((st, idx) => {
     const row = document.createElement('div');
@@ -451,6 +542,15 @@ function showRaceFinishedModal() {
   });
 
   finishModalEl.classList.remove('hidden');
+  startConfetti();
+
+  // Play ElevenLabs winning cheer or grumbling voice line
+  try {
+    const voiceLine = rank === 1 ? '/new_voices/overtake_1.mp3' : '/new_voices/bump_1.mp3';
+    const finishAudio = new Audio(voiceLine);
+    finishAudio.volume = 1.0;
+    finishAudio.play().catch(() => {});
+  } catch (e) {}
 }
 
 // ----------------------------------------------------------------------------
@@ -538,35 +638,98 @@ function updateHUD() {
 }
 
 // ----------------------------------------------------------------------------
-// 10. CHASE CAMERA CONTROLLER
+// 10. MULTI-MODE CAMERA CONTROLLER & IMPACT SHAKE (Sprint 9)
 // ----------------------------------------------------------------------------
 const cameraCurrentPos = new THREE.Vector3(0, 4, -8);
 const cameraLookTarget = new THREE.Vector3(0, 1, 0);
 
+let cameraMode = 'CHASE'; // 'CHASE' | 'HOOD' | 'SPECTATE'
+const camHudLabel = document.getElementById('cam-hud-label');
+const btnCameraView = document.getElementById('btn-camera-view');
+const podiumCamBtn = document.getElementById('btn-change-camera-podium');
+
+function cycleCameraMode() {
+  if (cameraMode === 'CHASE') {
+    cameraMode = 'HOOD';
+  } else if (cameraMode === 'HOOD') {
+    cameraMode = 'SPECTATE';
+  } else {
+    cameraMode = 'CHASE';
+  }
+  if (camHudLabel) camHudLabel.textContent = cameraMode;
+}
+
+if (btnCameraView) {
+  btnCameraView.addEventListener('click', (e) => {
+    e.preventDefault();
+    cycleCameraMode();
+  });
+}
+if (podiumCamBtn) {
+  podiumCamBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    cycleCameraMode();
+  });
+}
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyC') {
+    cycleCameraMode();
+  }
+});
+
+let cameraShakeTrauma = 0;
+let cameraShakeTimer = 0;
+export function addCameraTrauma(amount) {
+  cameraShakeTrauma = Math.min(1.0, cameraShakeTrauma + amount);
+}
+
 function updateChaseCamera(dt) {
-  const speedRatio = Math.min(Math.abs(vehicle.speed) / vehicle.boostMaxSpeed, 1.0);
-
-  const baseDistance = 6.4;
-  const speedPullback = speedRatio * 3.4;
-  const followDistance = baseDistance + speedPullback;
-
-  const baseHeight = 3.0;
-  const followHeight = baseHeight + speedRatio * 0.9;
-
   const forwardX = Math.sin(vehicle.heading);
   const forwardZ = Math.cos(vehicle.heading);
 
-  const desiredCamX = vehicle.position.x - forwardX * followDistance;
-  const desiredCamZ = vehicle.position.z - forwardZ * followDistance;
-  const desiredCamY = vehicle.position.y + followHeight;
+  let desiredCamX, desiredCamY, desiredCamZ;
+  let desiredLookX, desiredLookY, desiredLookZ;
 
-  const camLerp = 1.0 - Math.exp(-6.5 * dt);
+  if (cameraMode === 'HOOD') {
+    desiredCamX = vehicle.position.x + forwardX * 0.4;
+    desiredCamZ = vehicle.position.z + forwardZ * 0.4;
+    desiredCamY = vehicle.position.y + 1.35;
+    desiredLookX = vehicle.position.x + forwardX * 12.0;
+    desiredLookZ = vehicle.position.z + forwardZ * 12.0;
+    desiredLookY = vehicle.position.y + 1.1;
+  } else if (cameraMode === 'SPECTATE') {
+    desiredCamX = vehicle.position.x - forwardX * 14.0;
+    desiredCamZ = vehicle.position.z - forwardZ * 14.0;
+    desiredCamY = vehicle.position.y + 7.5;
+    desiredLookX = vehicle.position.x + forwardX * 2.0;
+    desiredLookZ = vehicle.position.z + forwardZ * 2.0;
+    desiredLookY = vehicle.position.y + 1.2;
+  } else {
+    const speedRatio = Math.min(Math.abs(vehicle.speed) / vehicle.boostMaxSpeed, 1.0);
+    const followDistance = 6.4 + speedRatio * 3.4;
+    const followHeight = 3.0 + speedRatio * 0.9;
+    desiredCamX = vehicle.position.x - forwardX * followDistance;
+    desiredCamZ = vehicle.position.z - forwardZ * followDistance;
+    desiredCamY = vehicle.position.y + followHeight;
+    desiredLookX = vehicle.position.x + forwardX * 1.8;
+    desiredLookZ = vehicle.position.z + forwardZ * 1.8;
+    desiredLookY = vehicle.position.y + 1.25;
+  }
+
+  const camLerp = 1.0 - Math.exp(-7.0 * dt);
   cameraCurrentPos.lerp(new THREE.Vector3(desiredCamX, desiredCamY, desiredCamZ), camLerp);
   camera.position.copy(cameraCurrentPos);
 
-  const desiredLookX = vehicle.position.x + forwardX * 1.8;
-  const desiredLookZ = vehicle.position.z + forwardZ * 1.8;
-  const desiredLookY = vehicle.position.y + 1.25;
+  // Subtle High-Frequency Camera Shake on Speed Bumps / Wall Hits / AI Collisions
+  if (cameraShakeTrauma > 0.001) {
+    cameraShakeTimer += dt * 38.0;
+    const shakeIntensity = cameraShakeTrauma * cameraShakeTrauma;
+    const shakeOffsetX = Math.sin(cameraShakeTimer * 1.4) * 0.28 * shakeIntensity;
+    const shakeOffsetY = Math.cos(cameraShakeTimer * 1.8) * 0.22 * shakeIntensity;
+    const shakeOffsetZ = Math.sin(cameraShakeTimer * 0.95) * 0.20 * shakeIntensity;
+    camera.position.add(new THREE.Vector3(shakeOffsetX, shakeOffsetY, shakeOffsetZ));
+    cameraShakeTrauma = Math.max(0, cameraShakeTrauma - dt * 3.0); // ~300ms decay
+  }
 
   const lookLerp = 1.0 - Math.exp(-9.0 * dt);
   cameraLookTarget.lerp(new THREE.Vector3(desiredLookX, desiredLookY, desiredLookZ), lookLerp);
@@ -603,6 +766,7 @@ function checkVehicleCollisions() {
       );
       const forwardDir = new THREE.Vector3(Math.sin(vehicle.heading), 0, Math.cos(vehicle.heading));
       sparkSystem.emitSpark(contactPos, forwardDir);
+      addCameraTrauma(0.35);
 
       // Trigger AI voice dialogue on bump
       voiceSystem.triggerDialogue(r.name, 'collision', r.mesh);
@@ -788,6 +952,16 @@ function animate() {
   vehicle.position.x += (forwardX * vehicle.speed + rightX * vehicle.lateralSlip) * dt;
   vehicle.position.z += (forwardZ * vehicle.speed + rightZ * vehicle.lateralSlip) * dt;
 
+  // Vertical suspension launch and gravity bounce (Speed Breakers)
+  if (vehicle.position.y > 0 || vehicle.verticalVelocity > 0) {
+    vehicle.verticalVelocity -= 22.0 * dt;
+    vehicle.position.y += vehicle.verticalVelocity * dt;
+    if (vehicle.position.y <= 0) {
+      vehicle.position.y = 0;
+      vehicle.verticalVelocity = 0;
+    }
+  }
+
   // -----------------------------------------------------------
   // G. TRACK BOUNDARY & BARRIER COLLISION (Smooth Wall-Sliding)
   // -----------------------------------------------------------
@@ -815,6 +989,7 @@ function animate() {
     if (now - lastBarrierHitTime > 350) {
       audio.playBarrierHitSound();
       lastBarrierHitTime = now;
+      addCameraTrauma(0.40);
     }
   }
 
@@ -925,6 +1100,19 @@ function animate() {
     sparkSystem.emitSpark(rightWheelPos, forwardVec);
   }
 
+  // Billowy Tire Smoke during Drifts & Hard Braking (Sprint 9)
+  const isHardBraking = (isBrake || controls.state.brake) && speedMagnitude > 3.5;
+  if (vehicle.isDrifting || isHardBraking) {
+    const smokeLeft = new THREE.Vector3(-0.66, 0.06, -0.65)
+      .applyAxisAngle(new THREE.Vector3(0, 1, 0), vehicle.heading)
+      .add(vehicle.position);
+    const smokeRight = new THREE.Vector3(0.66, 0.06, -0.65)
+      .applyAxisAngle(new THREE.Vector3(0, 1, 0), vehicle.heading)
+      .add(vehicle.position);
+    tireSmokeSystem.emitSmoke(smokeLeft, forwardVec, vehicle.speed);
+    tireSmokeSystem.emitSmoke(smokeRight, forwardVec, vehicle.speed);
+  }
+
   if (vehicle.isBoosting) {
     const exhaustWorldPos = new THREE.Vector3(-0.45, 0.26, -1.45)
       .applyAxisAngle(new THREE.Vector3(0, 1, 0), vehicle.heading)
@@ -935,9 +1123,44 @@ function animate() {
 
   sparkSystem.update(dt, camera);
   nitroFlameSystem.update(dt, camera);
+  tireSmokeSystem.update(dt, camera);
 
   // -----------------------------------------------------------
-  // L. CONE HAZARDS & FLYING COLLISION PHYSICS
+  // L. INDIAN STREET HAZARDS & ROAD OBSTACLES (Sprint 9)
+  // -----------------------------------------------------------
+  obstacles.update(dt, vehicle, audio, addCameraTrauma);
+
+  // -----------------------------------------------------------
+  // M. DYNAMIC DUSK LIGHTING TRANSITION ACROSS LAPS (Sprint 9)
+  // -----------------------------------------------------------
+  const duskFactor = Math.min(1.0, Math.max(0.0, raceState.playerTotalProgress / raceState.totalLaps));
+  environment.setDuskProgress(duskFactor);
+
+  // Lerp Directional Sunlight from golden-hour white to sunset crimson/amber
+  const daySunCol = new THREE.Color(0xfffdf5);
+  const duskSunCol = new THREE.Color(0xff6e30);
+  sunLight.color.copy(daySunCol).lerp(duskSunCol, duskFactor);
+  sunLight.intensity = 2.0 - duskFactor * 1.05;
+
+  // Lerp Hemisphere sky & ground bounce to moody twilight
+  const dayHemiSky = new THREE.Color(0x87ceeb);
+  const duskHemiSky = new THREE.Color(0x282048);
+  const dayHemiGnd = new THREE.Color(0xd4a373);
+  const duskHemiGnd = new THREE.Color(0x402b1f);
+  hemiLight.color.copy(dayHemiSky).lerp(duskHemiSky, duskFactor);
+  hemiLight.groundColor.copy(dayHemiGnd).lerp(duskHemiGnd, duskFactor);
+
+  // Atmospheric Fog transition to twilight purple haze
+  const dayFogCol = new THREE.Color(0xf0c294);
+  const duskFogCol = new THREE.Color(0x281938);
+  scene.fog.color.copy(dayFogCol).lerp(duskFogCol, duskFactor);
+  scene.fog.density = 0.0016 + duskFactor * 0.0006;
+
+  // Boost headlight beam intensity at dusk
+  headlightBeam.intensity = 2.8 + duskFactor * 1.8;
+
+  // -----------------------------------------------------------
+  // N. CONE HAZARDS & FLYING COLLISION PHYSICS
   // -----------------------------------------------------------
   track.trackCones.forEach((cone) => {
     const dist = vehicle.position.distanceTo(cone.mesh.position);

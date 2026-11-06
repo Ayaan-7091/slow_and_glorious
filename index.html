@@ -157,6 +157,16 @@
           </button>
         </div>
 
+        <!-- Lap Count Selector (Sprint 9) -->
+        <div class="lap-selector-container">
+          <label class="lap-selector-label">🏁 RACE DISTANCE (LAPS):</label>
+          <div class="lap-options-row">
+            <button class="lap-option-btn" data-laps="1">1 LAP (SPRINT)</button>
+            <button class="lap-option-btn selected" data-laps="3">3 LAPS (STANDARD)</button>
+            <button class="lap-option-btn" data-laps="5">5 LAPS (ENDURANCE)</button>
+          </div>
+        </div>
+
         <button id="btn-start-race" class="start-race-btn">
           🚦 START RACE (CHALO!)
         </button>
@@ -265,12 +275,53 @@
       </div>
     </div>
 
-    <!-- Sleek Race Finished Modal Overlay -->
+    <!-- Sleek Arcade Grand Prix Podium Celebration Overlay (Sprint 9) -->
     <div id="finish-modal" class="finish-modal hidden">
-      <div class="finish-card">
+      <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
+      <div class="finish-card podium-card">
         <div class="finish-trophy" id="finish-trophy">🏆</div>
-        <h2 id="finish-title">RACE FINISHED!</h2>
+        <h2 id="finish-title">DESI GRAND PRIX PODIUM</h2>
         <div class="finish-rank-badge" id="finish-rank-badge">1st PLACE</div>
+
+        <!-- 3-Tier Visual Podium (2nd, 1st, 3rd) -->
+        <div class="podium-stage">
+          <!-- 2nd Place Step -->
+          <div class="podium-step step-2" id="podium-step-2">
+            <div class="podium-racer">
+              <span class="podium-avatar">🛺</span>
+              <span class="podium-name" id="podium-name-2">Babloo</span>
+            </div>
+            <div class="podium-block block-2">
+              <span class="podium-pos">2</span>
+              <span class="podium-medal">🥈</span>
+            </div>
+          </div>
+
+          <!-- 1st Place Step (Center Tallest) -->
+          <div class="podium-step step-1" id="podium-step-1">
+            <div class="podium-racer winner">
+              <span class="podium-crown">👑</span>
+              <span class="podium-avatar winner-avatar">🛺</span>
+              <span class="podium-name winner-name" id="podium-name-1">YOU (PLAYER)</span>
+            </div>
+            <div class="podium-block block-1">
+              <span class="podium-pos">1</span>
+              <span class="podium-medal">🏆</span>
+            </div>
+          </div>
+
+          <!-- 3rd Place Step -->
+          <div class="podium-step step-3" id="podium-step-3">
+            <div class="podium-racer">
+              <span class="podium-avatar">🛺</span>
+              <span class="podium-name" id="podium-name-3">Munna</span>
+            </div>
+            <div class="podium-block block-3">
+              <span class="podium-pos">3</span>
+              <span class="podium-medal">🥉</span>
+            </div>
+          </div>
+        </div>
         
         <div class="finish-stats-grid">
           <div class="finish-stat">
@@ -294,9 +345,14 @@
           </div>
         </div>
 
-        <button id="btn-restart-race" class="finish-btn">
-          🏁 RACE AGAIN
-        </button>
+        <div class="podium-actions-row">
+          <button id="btn-restart-race" class="finish-btn podium-primary-btn">
+            🏁 PLAY AGAIN (SELECT DIFFICULTY)
+          </button>
+          <button id="btn-change-camera-podium" class="finish-btn podium-secondary-btn">
+            🎥 CHANGE TRACK CAMERA
+          </button>
+        </div>
       </div>
     </div>
 
