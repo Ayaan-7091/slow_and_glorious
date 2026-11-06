@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>Tuk-Tuk Runner - Indian Street Circuit (Sprint 3)</title>
-    <script type="module" crossorigin src="/assets/index-C_arHc4-.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DtMJN9Vu.css">
+    <title>Rickshaw Bawal — Indian Street Circuit</title>
+    <script type="module" crossorigin src="/assets/index-DujScJeH.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-D5Hz-WjH.css">
   </head>
   <body>
     <!-- Three.js Canvas Container -->
@@ -21,8 +21,8 @@
         <div class="hud-brand">
           <span class="auto-icon">🛺</span>
           <div class="brand-text">
-            <h1>TUK-TUK RUNNER</h1>
-            <span class="subtitle">Indian Street Circuit • Sprint 3</span>
+            <h1>RICKSHAW BAWAL</h1>
+            <span class="subtitle">Indian Street Circuit</span>
           </div>
         </div>
 
@@ -119,80 +119,65 @@
       <canvas id="minimap-canvas" width="150" height="150"></canvas>
     </div>
 
-    <!-- Pre-Race Difficulty Selector Modal (Sprint 4 & Sprint 10 Truck-Art Styling) -->
+    <!-- Rickshaw Bawal Main Menu -->
     <div id="difficulty-modal" class="difficulty-modal">
-      <div class="diff-card desi-truck-card">
-        <!-- Indian Truck-Art Corner Accents -->
-        <div class="truck-art-corner top-left">✦</div>
-        <div class="truck-art-corner top-right">✦</div>
-        <div class="truck-art-corner bottom-left">✦</div>
-        <div class="truck-art-corner bottom-right">✦</div>
-
-        <div class="diff-header-banner">
-          <span class="diff-sacred-header">🪔 ॥ शुभ यात्रा • HORN OK PLEASE ॥ 🪔</span>
-          <h2>चुनौतियाँ • SELECT DIFFICULTY</h2>
-          <p class="diff-subtitle">रेस शुरू होने से पहले अपना लेवल चुनें • Choose your racing challenge!</p>
+      <div class="diff-card desi-truck-card bawal-menu-card">
+        <div class="bawal-menu-topline">
+          <div class="bawal-brand-mark" aria-hidden="true">🛺</div>
+          <div class="bawal-brand-copy">
+            <span>INDIAN STREET CIRCUIT</span>
+            <strong>RICKSHAW BAWAL</strong>
+          </div>
+          <span class="bawal-edition">STREET RACING • EDITION 03</span>
         </div>
 
-        <div class="diff-options">
-          <!-- EASY -->
-          <button class="diff-option-btn easy" data-diff="EASY">
-            <div class="diff-option-header">
-              <span class="diff-badge green">गल्ली क्रूज़र • EASY</span>
-              <span class="diff-name">GALLI CRUISER</span>
-            </div>
-            <p class="diff-desc">आराम से चलो। Relaxed street pace. Great for practicing sharp turns & chai nitro drifts.</p>
-            <div class="diff-stats">
-              <span>स्पीड: ~76 KM/H</span>
-              <span>बूस्ट: कभी-कभार (Rare)</span>
-            </div>
+        <div class="bawal-menu-heading">
+          <span class="bawal-eyebrow">PICK YOUR CHALLENGE</span>
+          <h2>CHOOSE YOUR RACE</h2>
+          <p>Choose a racing mode, set your distance, and hit the road.</p>
+        </div>
+
+        <div class="bawal-section-label">01 / RACING MODE</div>
+        <div class="diff-options bawal-difficulty-options">
+          <button class="diff-option-btn bawal-mode easy" data-diff="EASY" aria-pressed="false">
+            <span class="bawal-mode-pill">EASY</span>
+            <span class="bawal-mode-icon" aria-hidden="true">🌿</span>
+            <span class="diff-name">Gully Racer</span>
+            <span class="diff-desc">A relaxed ride through the streets. Find your rhythm.</span>
           </button>
 
-          <!-- MEDIUM -->
-          <button class="diff-option-btn medium selected" data-diff="MEDIUM">
-            <div class="diff-option-header">
-              <span class="diff-badge orange">बाज़ार रेसर • MEDIUM</span>
-              <span class="diff-name">BAZAAR RACER</span>
-            </div>
-            <p class="diff-desc">धूम मचाले! Competitive bazaar pace. Rivals match player speed with tactical nitro surges.</p>
-            <div class="diff-stats">
-              <span>स्पीड: ~92 KM/H</span>
-              <span>बूस्ट: मध्यम (Occasional)</span>
-            </div>
+          <button class="diff-option-btn bawal-mode medium selected" data-diff="MEDIUM" aria-pressed="true">
+            <span class="bawal-mode-pill">MEDIUM</span>
+            <span class="bawal-mode-icon" aria-hidden="true">🏁</span>
+            <span class="diff-name">Bazar Racer</span>
+            <span class="diff-desc">Busy streets, close rivals, and a faster pace.</span>
           </button>
 
-          <!-- HARD -->
-          <button class="diff-option-btn hard" data-diff="HARD">
-            <div class="diff-option-header">
-              <span class="diff-badge red">मीटर डाउन • HARD PRO</span>
-              <span class="diff-name">METER DOWN PRO</span>
-            </div>
-            <p class="diff-desc">धुआँधार रेस! Ultra-aggressive 115% top speed, tight inside lines, and constant Nitro attacks 🔥</p>
-            <div class="diff-stats">
-              <span>स्पीड: ~104 KM/H</span>
-              <span>बूस्ट: लगातार (Frequent 🔥)</span>
-            </div>
+          <button class="diff-option-btn bawal-mode hard" data-diff="HARD" aria-pressed="false">
+            <span class="bawal-mode-pill">HARD</span>
+            <span class="bawal-mode-icon" aria-hidden="true">🔥</span>
+            <span class="diff-name">Meterdown Pro</span>
+            <span class="diff-desc">High-pressure racing. Every turn matters.</span>
           </button>
         </div>
 
-        <!-- Lap Count Selector (Sprint 9) -->
-        <div class="lap-selector-container">
-          <label class="lap-selector-label">🏁 रेस के चक्कर • RACE DISTANCE:</label>
+        <div class="bawal-section-label bawal-laps-heading">02 / SELECT LAPS</div>
+        <div class="lap-selector-container bawal-lap-selector">
           <div class="lap-options-row">
-            <button class="lap-option-btn" data-laps="1">1 LAP (SPRINT)</button>
-            <button class="lap-option-btn selected" data-laps="3">3 LAPS (STANDARD)</button>
-            <button class="lap-option-btn" data-laps="5">5 LAPS (ENDURANCE)</button>
+            <button class="lap-option-btn" data-laps="1" aria-pressed="false">1 LAP <small>· SPRINT</small></button>
+            <button class="lap-option-btn selected" data-laps="3" aria-pressed="true">3 LAPS <small>· STANDARD</small></button>
+            <button class="lap-option-btn" data-laps="5" aria-pressed="false">5 LAPS <small>· ENDURANCE</small></button>
           </div>
         </div>
 
-        <!-- Start Race & 3D Garage Buttons Row (Sprint 10) -->
-        <div class="main-menu-actions">
-          <button id="btn-start-race" class="start-race-btn">
-            🚦 चलो! START RACE (CHALO!)
-          </button>
-          <button id="btn-enter-garage" class="enter-garage-btn">
-            🔧 राजू मिस्त्री 3D गैराज (CUSTOMIZE)
-          </button>
+        <div class="main-menu-actions bawal-menu-actions">
+          <button id="btn-start-race" class="start-race-btn">▶ &nbsp; PLAY</button>
+          <button id="btn-enter-garage" class="enter-garage-btn">🛠 &nbsp; GARAGE</button>
+        </div>
+
+        <div class="bawal-menu-footer">
+          <span>BUILT FOR THE STREETS</span>
+          <span>HORN OK • RACE ON</span>
         </div>
       </div>
     </div>
@@ -213,98 +198,82 @@
 
       <!-- Garage Customization Sidebar Panel -->
       <aside class="garage-sidebar">
-        <!-- 1. Archetype Presets -->
         <div class="garage-section">
-          <label class="g-section-title">🛺 MODEL ARCHETYPE</label>
+          <label class="g-section-title">🛺 CHOOSE YOUR RICKSHAW</label>
           <div class="archetype-grid">
             <button class="archetype-btn selected" data-archetype="CLASSIC_MUMBAI">
               <span class="arch-badge yellow">CLASSIC</span>
-              <span class="arch-name">Mumbai Standard</span>
-              <span class="arch-desc">Iconic Yellow & Black</span>
+              <span class="arch-name">Mumbai Classic</span>
+              <span class="arch-desc">The iconic city auto</span>
             </button>
             <button class="archetype-btn" data-archetype="GREEN_CNG">
               <span class="arch-badge green">CNG</span>
-              <span class="arch-name">Delhi Green</span>
-              <span class="arch-desc">Emerald & Gold</span>
+              <span class="arch-name">Green CNG</span>
+              <span class="arch-desc">Delhi-inspired auto</span>
             </button>
-            <button class="archetype-btn" data-archetype="RIZ">
-              <span class="arch-badge flame">🔥 RIZ</span>
-              <span class="arch-name">RIZ Hot Rod</span>
-              <span class="arch-desc">All Black • Flames • Open V-Twin</span>
+            <button class="archetype-btn" data-archetype="SPORT">
+              <span class="arch-badge cyan">SPORT</span>
+              <span class="arch-name">Sport</span>
+              <span class="arch-desc">Performance body kit</span>
             </button>
             <button class="archetype-btn" data-archetype="ROYAL_VINTAGE">
               <span class="arch-badge maroon">VINTAGE</span>
               <span class="arch-name">Royal Vintage</span>
-              <span class="arch-desc">Royal Maroon & Cream</span>
+              <span class="arch-desc">Classic royal finish</span>
+            </button>
+            <button class="archetype-btn" data-archetype="EV">
+              <span class="arch-badge cyan">ELECTRIC</span>
+              <span class="arch-name">Electric</span>
+              <span class="arch-desc">Modern EV styling</span>
+            </button>
+            <button class="archetype-btn" data-archetype="EXPLORER">
+              <span class="arch-badge green">ADVENTURE</span>
+              <span class="arch-name">Explorer</span>
+              <span class="arch-desc">Touring-ready look</span>
+            </button>
+            <button class="archetype-btn" data-archetype="RES">
+              <span class="arch-badge maroon">RACING</span>
+              <span class="arch-name">RES</span>
+              <span class="arch-desc">Race-inspired build</span>
+            </button>
+            <button class="archetype-btn" data-archetype="RAPTOR">
+              <span class="arch-badge green">RAPTOR</span>
+              <span class="arch-name">Raptor</span>
+              <span class="arch-desc">Aggressive turbo kit</span>
+            </button>
+            <button class="archetype-btn" data-archetype="POLICE">
+              <span class="arch-badge cyan">POLICE</span>
+              <span class="arch-name">Police</span>
+              <span class="arch-desc">City patrol edition</span>
+            </button>
+            <button class="archetype-btn" data-archetype="CHAIWALA">
+              <span class="arch-badge yellow">SPECIAL</span>
+              <span class="arch-name">Chaiwala</span>
+              <span class="arch-desc">Street tea special</span>
             </button>
           </div>
         </div>
 
-        <!-- 2. Paint & Livery Swatches -->
         <div class="garage-section">
-          <label class="g-section-title">🎨 BODY PAINT COLOR</label>
-          <div class="paint-swatches-row">
-            <button class="paint-swatch selected" data-color="#f5b000" style="background: #f5b000;" title="Auto Yellow"></button>
-            <button class="paint-swatch" data-color="#0c6833" style="background: #0c6833;" title="Emerald Green"></button>
-            <button class="paint-swatch" data-color="#6a040f" style="background: #6a040f;" title="Royal Maroon"></button>
-            <button class="paint-swatch" data-color="#121626" style="background: #121626;" title="Midnight Navy"></button>
-            <button class="paint-swatch" data-color="#ff5400" style="background: #ff5400;" title="Fiery Orange"></button>
-            <button class="paint-swatch" data-color="#f8f9fa" style="background: #f8f9fa;" title="Classic Cream"></button>
-          </div>
-        </div>
-
-        <!-- 3. Rear Tailgate Bumper Slogans -->
-        <div class="garage-section">
-          <label class="g-section-title">💬 REAR BUMPER SLOGAN</label>
-          <div class="slogan-selector-list">
-            <button class="garage-slogan-btn selected" data-slogan="HORN_OK">
-              <span>HORN OK PLEASE</span>
-              <small>👹 बुरी नज़र वाले तेरा मुँह काला</small>
-            </button>
-            <button class="garage-slogan-btn" data-slogan="BURI_NAZAR">
-              <span>BURI NAZAR WALE...</span>
-              <small>🌶️ बुरी नज़र वाले तेरा मुँह काला 👁️</small>
-            </button>
-            <button class="garage-slogan-btn" data-slogan="MERA_BHARAT">
-              <span>MERA BHARAT MAHAN</span>
-              <small>🇮🇳 मेरा भारत महान 🇮🇳</small>
-            </button>
-            <button class="garage-slogan-btn" data-slogan="DEKH_MAGAR">
-              <span>DEKH MAGAR PYAAR SE</span>
-              <small>👀 देख मगर प्यार से! ❤️</small>
-            </button>
-          </div>
-        </div>
-
-        <!-- 4. Bling & Accessories -->
-        <div class="garage-section">
-          <label class="g-section-title">✨ ACCESSORIES & BLING</label>
+          <label class="g-section-title">✨ ACCESSORIES</label>
           <div class="bling-options-list">
             <label class="garage-toggle-row">
               <input type="checkbox" id="g-toggle-garland" checked>
               <div class="toggle-text">
-                <span>🌼 Windshield Marigold Garland</span>
-                <small>Swings with high-speed turns</small>
-              </div>
-            </label>
-            <label class="garage-toggle-row">
-              <input type="checkbox" id="g-toggle-bobblehead" checked>
-              <div class="toggle-text">
-                <span>🪆 Dashboard Mascot Bobblehead</span>
-                <small>Spring-loaded nodding idol</small>
+                <span>🌼 Marigold Garland</span>
+                <small>Hanging windshield decoration</small>
               </div>
             </label>
             <label class="garage-toggle-row">
               <input type="checkbox" id="g-toggle-roofrack">
               <div class="toggle-text">
-                <span>🧳 Roof Luggage Rack & Vintage Cargo</span>
-                <small>Strapped travel suitcases</small>
+                <span>🧳 Roof Rack & Luggage</span>
+                <small>Travel cargo on the roof</small>
               </div>
             </label>
           </div>
         </div>
 
-        <!-- Footer Actions -->
         <div class="garage-sidebar-footer">
           <button id="btn-save-and-race" class="save-race-btn">
             🏁 SAVE & RACE (CHALO!)

@@ -498,6 +498,42 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
+   Minimap / Track Radar Container
+   -------------------------------------------------------------------------- */
+.minimap-container {
+  position: absolute;
+  top: 86px;
+  right: 16px;
+  z-index: 10;
+  background: rgba(18, 14, 20, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255, 170, 60, 0.35);
+  border-radius: 16px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.minimap-header {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.8px;
+  color: #ff9900;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+#minimap-canvas {
+  width: 110px;
+  height: 110px;
+  display: block;
+}
+
+/* --------------------------------------------------------------------------
    Mobile Touch Controls Overlay
    -------------------------------------------------------------------------- */
 .touch-controls-overlay {
@@ -510,6 +546,7 @@ html, body {
   justify-content: space-between;
   align-items: flex-end;
   pointer-events: none;
+  -webkit-touch-callout: none;
 }
 
 .touch-left-stack {
@@ -675,65 +712,408 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
-   Responsive Adaptations
+   Comprehensive Mobile & Tablet Responsive Architecture
    -------------------------------------------------------------------------- */
-@media (max-width: 900px) {
-  .hud-top {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
 
+/* 1. Touch Devices & Medium Screens (max-width: 900px or touch screens) */
+@media (hover: none) and (pointer: coarse), (max-width: 900px) {
+  /* Permanently hide desktop keyboard controls legend on mobile/touch */
   .controls-legend {
-    display: none; /* Hide keyboard legend on mobile/tablet screens */
-  }
-
-  .boost-meter-container {
-    width: 200px;
+    display: none !important;
   }
 }
 
-@media (max-width: 650px) {
-  .hud-brand .subtitle {
-    display: none;
+/* 2. Mobile Screens (Portrait & Landscape: max-width: 900px, max-height: 520px) */
+@media (max-width: 900px), (max-height: 520px) {
+  /* Keep top HUD on a single compact line — NEVER wrap into a 3-tier block */
+  .hud-top {
+    top: max(8px, env(safe-area-inset-top));
+    left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right));
+    flex-wrap: nowrap !important;
+    gap: 6px;
+    align-items: center;
+    justify-content: space-between;
   }
 
+  /* Hide huge brand banner on mobile during racing */
+  .hud-brand {
+    display: none !important;
+  }
+
+  /* Hide redundant desktop HUD buttons */
+  #btn-horn-hud,
+  #btn-difficulty-hud,
+  #btn-bling-hud,
+  #btn-mute,
+  .checkpoint-tracker {
+    display: none !important;
+  }
+
+  /* Compact 1-2 line Lap & Time Widget */
   .lap-timer-card {
-    min-width: 140px;
-    padding: 6px 10px;
+    min-width: auto;
+    padding: 4px 8px;
+    border-radius: 10px;
+    gap: 2px;
+    background: rgba(16, 12, 18, 0.88);
+  }
+
+  .lap-stat-row {
+    gap: 6px;
+  }
+
+  .stat-label {
+    font-size: 8px;
+    letter-spacing: 0.5px;
+  }
+
+  .stat-highlight,
+  .stat-digital,
+  .stat-gold {
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Compact Speedometer & Position cluster */
+  .hud-center-group {
+    gap: 2px;
+  }
+
+  .speed-and-pos-row {
+    gap: 6px;
+  }
+
+  .pos-badge-cluster {
+    padding: 3px 8px;
+    border-radius: 10px;
+    gap: 2px;
+  }
+
+  .pos-label {
+    font-size: 8px;
+  }
+
+  .pos-number {
+    font-size: 17px;
+  }
+
+  .pos-total {
+    font-size: 9px;
+  }
+
+  .speedometer-cluster {
+    padding: 3px 8px;
+    border-radius: 10px;
+    gap: 6px;
   }
 
   .digital-number {
-    font-size: 30px;
-    min-width: 48px;
+    font-size: 20px;
+    min-width: 32px;
   }
 
-  .steer-btn {
-    width: 60px;
-    height: 60px;
-    font-size: 22px;
+  .speed-unit {
+    font-size: 8px;
+    letter-spacing: 0.8px;
   }
 
-  .brake-btn {
-    width: 62px;
-    height: 62px;
-    font-size: 12px;
+  .gear-box {
+    padding: 0 5px;
   }
 
-  .gas-btn {
-    width: 72px;
-    height: 72px;
+  .gear-label {
+    font-size: 7px;
+  }
+
+  .gear-display {
+    font-size: 13px;
+    min-width: 14px;
+  }
+
+  .drift-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    letter-spacing: 1px;
+  }
+
+  .boost-meter-container {
+    width: 130px;
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  .boost-meter-header {
+    font-size: 7px;
+    margin-bottom: 2px;
+  }
+
+  .boost-percent {
+    font-size: 8px;
+  }
+
+  .boost-bar-track {
+    height: 5px;
+  }
+
+  /* Streamlined action icon buttons in top-right */
+  .hud-actions {
+    gap: 5px;
+  }
+
+  .hud-btn {
+    padding: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: 14px;
   }
 
-  .drift-btn, .boost-btn {
-    width: 90px;
-    height: 40px;
+  /* Hide button text on mobile, keeping just the clean emoji icons */
+  .hud-btn span {
+    display: none !important;
+  }
+
+  /* Checkpoint & Radio Popups on Mobile */
+  .checkpoint-banner {
+    top: 52px;
+    font-size: 12px;
+    padding: 5px 14px;
+    letter-spacing: 1px;
+  }
+
+  .radio-chatter-banner {
+    top: 48px;
+    padding: 6px 12px;
+    gap: 8px;
+    width: 92%;
+    max-width: 440px;
+    border-radius: 14px;
+  }
+
+  .radio-avatar {
+    font-size: 20px;
+  }
+
+  .radio-speaker-tag {
+    font-size: 8px;
+  }
+
+  .radio-hindi-text {
     font-size: 11px;
   }
 
+  .radio-english-sub {
+    font-size: 9px;
+  }
+
+  /* Ergonomic Thumb Zone Touch Controls Overlay */
+  .touch-controls-overlay {
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    pointer-events: none;
+    z-index: 25;
+  }
+
+  .touch-left-stack {
+    gap: 6px;
+  }
+
   .horn-touch-btn {
-    width: 132px;
-    height: 38px;
+    width: 116px;
+    height: 32px;
+    font-size: 11px;
+    border-radius: 12px;
+  }
+
+  .steering-cluster {
+    gap: 8px;
+  }
+
+  .steer-btn {
+    width: 54px;
+    height: 54px;
+    font-size: 20px;
+    border-radius: 16px;
+  }
+
+  .action-cluster {
+    gap: 6px;
+  }
+
+  .power-buttons-row {
+    gap: 6px;
+  }
+
+  .drift-btn,
+  .boost-btn {
+    width: 62px;
+    height: 34px;
+    font-size: 10px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  .pedal-group {
+    gap: 8px;
+  }
+
+  .brake-btn {
+    width: 56px;
+    height: 56px;
+    font-size: 11px;
+    border-radius: 16px;
+  }
+
+  .gas-btn {
+    width: 66px;
+    height: 66px;
+    font-size: 14px;
+    border-radius: 18px;
+  }
+}
+
+/* 3. Landscape Phones (Tight vertical space: height <= 520px) */
+@media (max-height: 520px) {
+  /* In landscape mobile gaming, hide minimap to free up the road completely */
+  .minimap-container {
+    display: none !important;
+  }
+
+  .touch-controls-overlay {
+    bottom: max(4px, env(safe-area-inset-bottom));
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+  }
+
+  .steer-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 18px;
+  }
+
+  .brake-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 10px;
+  }
+
+  .gas-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 13px;
+  }
+
+  .drift-btn,
+  .boost-btn {
+    width: 58px;
+    height: 30px;
+    font-size: 9px;
+  }
+
+  .horn-touch-btn {
+    width: 108px;
+    height: 28px;
+    font-size: 9px;
+  }
+
+  /* Compact start menu in landscape */
+  .difficulty-modal {
+    padding: 6px;
+    align-items: center;
+  }
+
+  .diff-card.desi-truck-card.bawal-menu-card {
+    padding: 12px 18px 10px;
+    max-height: calc(100vh - 12px);
+    width: 96%;
+    border-radius: 14px;
+  }
+
+  .bawal-menu-topline {
+    margin-bottom: 6px;
+  }
+
+  .bawal-menu-heading {
+    margin-bottom: 8px;
+  }
+
+  .bawal-menu-heading h2 {
+    font-size: 18px;
+  }
+
+  .bawal-menu-heading p {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  .diff-options.bawal-difficulty-options {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px;
+  }
+
+  .diff-option-btn.bawal-mode {
+    min-height: 0;
+    padding: 6px 8px;
+  }
+
+  .bawal-mode .diff-name {
+    font-size: 13px;
+    margin: 2px 0;
+  }
+
+  .bawal-mode .diff-desc {
+    font-size: 8px;
+    line-height: 1.15;
+  }
+
+  .bawal-laps-heading {
+    margin-top: 6px;
+    font-size: 8px;
+  }
+
+  .bawal-lap-selector .lap-option-btn {
+    padding: 5px 3px;
+    font-size: 10px;
+  }
+
+  .main-menu-actions.bawal-menu-actions {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .bawal-menu-actions .start-race-btn,
+  .bawal-menu-actions .enter-garage-btn {
+    min-height: 36px;
+    font-size: 12px;
+  }
+
+  .bawal-menu-footer {
+    display: none;
+  }
+}
+
+/* 4. Portrait Phones (Narrow width: width <= 650px and height > 520px) */
+@media (max-width: 650px) and (min-height: 521px) {
+  .minimap-container {
+    top: 52px;
+    right: 8px;
+    padding: 4px;
+    border-radius: 12px;
+  }
+
+  .minimap-header {
+    display: none;
+  }
+
+  #minimap-canvas {
+    width: 64px;
+    height: 64px;
   }
 }
 

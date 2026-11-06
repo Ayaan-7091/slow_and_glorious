@@ -314,7 +314,7 @@ const hudHeader = document.getElementById('hud-header');
 const hudTop = document.querySelector('.hud-top');
 const controlsLegend = document.querySelector('.controls-legend');
 const minimapContainer = document.getElementById('minimap-container');
-const touchControls = document.querySelector('.touch-controls');
+const touchControls = document.getElementById('touch-overlay') || document.querySelector('.touch-controls-overlay');
 
 function syncGarageUi() {
   document.querySelectorAll('.archetype-btn').forEach((btn) => {
