@@ -1,0 +1,470 @@
+/* ==========================================================================
+   AUTO-RICKSHAW 3D ARCADE STYLES
+   Warm sunset aesthetic, glassmorphism HUD, and responsive touch controls
+   ========================================================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #f58a4b;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+/* --------------------------------------------------------------------------
+   Canvas Container
+   -------------------------------------------------------------------------- */
+#canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+#canvas-container canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* --------------------------------------------------------------------------
+   HUD Top Bar
+   -------------------------------------------------------------------------- */
+.hud-top {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.hud-top > * {
+  pointer-events: auto;
+}
+
+.hud-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(18, 14, 20, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 8px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 170, 60, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.auto-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+
+.brand-text h1 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #ffca3a;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.brand-text .subtitle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: #ff9f68;
+  opacity: 0.9;
+}
+
+/* Speedometer Cluster */
+.speedometer-cluster {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(18, 14, 20, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 8px 22px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 170, 60, 0.3);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+.speed-box {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.digital-number {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 38px;
+  font-weight: 900;
+  color: #ffffff;
+  min-width: 65px;
+  text-align: right;
+  letter-spacing: -1px;
+  text-shadow: 0 0 16px rgba(255, 200, 80, 0.6);
+}
+
+.speed-unit {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #ffb066;
+}
+
+.gear-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0 14px;
+}
+
+.gear-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #aaa;
+}
+
+.gear-display {
+  font-size: 20px;
+  font-weight: 900;
+  color: #33dd55;
+  min-width: 20px;
+  text-align: center;
+}
+
+.drift-badge {
+  display: none;
+  background: linear-gradient(135deg, #ff4500, #ff8c00);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(255, 90, 0, 0.8);
+  animation: driftPulse 0.4s infinite alternate ease-in-out;
+}
+
+.drift-badge.active {
+  display: inline-block;
+}
+
+@keyframes driftPulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  100% { transform: scale(1.08); filter: brightness(1.25); }
+}
+
+/* Respawn Action Button */
+.hud-btn {
+  background: rgba(28, 22, 32, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #f0f0f0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.hud-btn:hover {
+  background: rgba(45, 35, 52, 0.95);
+  border-color: #ffaa33;
+  color: #ffcc44;
+  transform: translateY(-1px);
+}
+
+.hud-btn:active {
+  transform: translateY(1px);
+}
+
+/* --------------------------------------------------------------------------
+   Desktop Controls Legend (Side Overlay)
+   -------------------------------------------------------------------------- */
+.controls-legend {
+  position: absolute;
+  top: 90px;
+  left: 16px;
+  z-index: 10;
+  background: rgba(18, 14, 20, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 170, 60, 0.2);
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #e5e5e5;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.legend-header {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #ffb703;
+  margin-bottom: 4px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.key-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 11px;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.key-pill.wide {
+  min-width: 68px;
+}
+
+.key-desc {
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Touch Controls Overlay
+   -------------------------------------------------------------------------- */
+.touch-controls-overlay {
+  position: absolute;
+  bottom: 24px;
+  left: 20px;
+  right: 20px;
+  z-index: 15;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.touch-cluster {
+  pointer-events: auto;
+  display: flex;
+  gap: 14px;
+}
+
+/* Common Touch Button Styling */
+.touch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ffffff;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  transition: transform 0.08s ease, filter 0.08s ease, background 0.08s ease;
+}
+
+.touch-btn:active,
+.touch-btn.active {
+  transform: scale(0.92);
+  filter: brightness(1.25);
+}
+
+/* Steering Buttons (Left / Right) */
+.steering-cluster {
+  display: flex;
+  gap: 14px;
+}
+
+.steer-btn {
+  width: 72px;
+  height: 72px;
+  background: rgba(24, 20, 28, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(255, 180, 80, 0.35);
+  font-size: 26px;
+  color: #ffb703;
+}
+
+.steer-btn:active,
+.steer-btn.active {
+  background: rgba(255, 183, 3, 0.4);
+  border-color: #ffb703;
+  color: #ffffff;
+}
+
+/* Action Buttons (Gas, Brake, Drift) */
+.action-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.drift-btn {
+  width: 140px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(230, 81, 0, 0.8), rgba(255, 140, 0, 0.8));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-color: rgba(255, 170, 70, 0.6);
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 8px 20px rgba(255, 100, 0, 0.4);
+}
+
+.drift-btn:active,
+.drift-btn.active {
+  background: linear-gradient(135deg, #ff4500, #ff8c00);
+  box-shadow: 0 0 24px rgba(255, 100, 0, 0.9);
+}
+
+.pedal-group {
+  display: flex;
+  gap: 14px;
+}
+
+.brake-btn {
+  width: 74px;
+  height: 74px;
+  background: rgba(180, 30, 30, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(255, 100, 100, 0.5);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.brake-btn:active,
+.brake-btn.active {
+  background: rgba(220, 40, 40, 0.95);
+  box-shadow: 0 0 20px rgba(255, 60, 60, 0.8);
+}
+
+.gas-btn {
+  width: 84px;
+  height: 84px;
+  background: rgba(15, 140, 60, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(80, 220, 120, 0.5);
+  font-size: 16px;
+  font-weight: 900;
+  border-radius: 24px;
+}
+
+.gas-btn:active,
+.gas-btn.active {
+  background: rgba(25, 180, 80, 0.95);
+  box-shadow: 0 0 22px rgba(50, 220, 100, 0.8);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Adaptations
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .hud-top {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+  }
+
+  .hud-brand {
+    padding: 6px 12px;
+  }
+
+  .auto-icon {
+    font-size: 22px;
+  }
+
+  .brand-text h1 {
+    font-size: 13px;
+  }
+
+  .brand-text .subtitle {
+    display: none;
+  }
+
+  .controls-legend {
+    display: none; /* Hide desktop instructions on small mobile screens */
+  }
+
+  .digital-number {
+    font-size: 30px;
+    min-width: 50px;
+  }
+
+  .speedometer-cluster {
+    padding: 6px 14px;
+    gap: 10px;
+  }
+
+  .steer-btn {
+    width: 62px;
+    height: 62px;
+    font-size: 22px;
+  }
+
+  .brake-btn {
+    width: 64px;
+    height: 64px;
+    font-size: 12px;
+  }
+
+  .gas-btn {
+    width: 74px;
+    height: 74px;
+    font-size: 15px;
+  }
+
+  .drift-btn {
+    width: 120px;
+    height: 42px;
+    font-size: 12px;
+  }
+}
+

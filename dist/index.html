@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Auto-Rickshaw 3D Arcade - Level 1 Prototype</title>
+    <script type="module" crossorigin src="/assets/index-B40lfM0T.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DZPZNbv6.css">
+  </head>
+  <body>
+    <!-- Three.js Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Arcade HUD Top Bar -->
+    <header class="hud-top">
+      <div class="hud-brand">
+        <span class="auto-icon">🛺</span>
+        <div class="brand-text">
+          <h1>TUK-TUK RUNNER</h1>
+          <span class="subtitle">Level 1 Arcade Prototype</span>
+        </div>
+      </div>
+
+      <!-- Center Speedometer & Gear -->
+      <div class="speedometer-cluster">
+        <div class="speed-box">
+          <span id="speed-value" class="digital-number">0</span>
+          <span class="speed-unit">KM/H</span>
+        </div>
+        <div class="gear-box">
+          <span class="gear-label">GEAR</span>
+          <span id="gear-value" class="gear-display">N</span>
+        </div>
+        <div id="drift-badge" class="drift-badge">
+          DRIFT!
+        </div>
+      </div>
+
+      <!-- Action Buttons (Reset & Help) -->
+      <div class="hud-actions">
+        <button id="btn-reset" class="hud-btn" title="Reset Vehicle (Key: R)">
+          ↺ Respawn
+        </button>
+      </div>
+    </header>
+
+    <!-- Desktop Controls Legend (Fades out when driving or on mobile) -->
+    <div class="controls-legend" id="controls-legend">
+      <div class="legend-header">🎮 CONTROLS</div>
+      <div class="legend-row">
+        <span class="key-pill">W</span> / <span class="key-pill">↑</span>
+        <span class="key-desc">Accelerate (Gas)</span>
+      </div>
+      <div class="legend-row">
+        <span class="key-pill">S</span> / <span class="key-pill">↓</span>
+        <span class="key-desc">Brake / Reverse</span>
+      </div>
+      <div class="legend-row">
+        <span class="key-pill">A</span> <span class="key-pill">D</span> /
+        <span class="key-pill">←</span> <span class="key-pill">→</span>
+        <span class="key-desc">Steer Left / Right</span>
+      </div>
+      <div class="legend-row">
+        <span class="key-pill wide">SPACEBAR</span>
+        <span class="key-desc">Power Drift & Sparks</span>
+      </div>
+      <div class="legend-row">
+        <span class="key-pill">R</span>
+        <span class="key-desc">Reset Rickshaw</span>
+      </div>
+    </div>
+
+    <!-- Mobile Touch Overlay (Bottom of the screen) -->
+    <div class="touch-controls-overlay" id="touch-overlay">
+      <!-- Bottom-Left: Steering Buttons -->
+      <div class="touch-cluster steering-cluster">
+        <button id="btn-left" class="touch-btn steer-btn" aria-label="Steer Left">
+          ◀
+        </button>
+        <button id="btn-right" class="touch-btn steer-btn" aria-label="Steer Right">
+          ▶
+        </button>
+      </div>
+
+      <!-- Bottom-Right: Gas, Brake, and Drift Buttons -->
+      <div class="touch-cluster action-cluster">
+        <button id="btn-drift" class="touch-btn drift-btn" aria-label="Drift">
+          DRIFT
+        </button>
+        <div class="pedal-group">
+          <button id="btn-brake" class="touch-btn brake-btn" aria-label="Brake or Reverse">
+            BRAKE
+          </button>
+          <button id="btn-gas" class="touch-btn gas-btn" aria-label="Accelerate">
+            GAS
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main JavaScript Entry -->
+  </body>
+</html>
