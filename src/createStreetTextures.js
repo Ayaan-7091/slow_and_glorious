@@ -264,9 +264,9 @@ export function createPissingFineStencilTexture() {
 }
 
 /**
- * Authentic "HORN OK PLEASE" & "बुरी नज़र वाले तेरा मुँह काला" Rickshaw rear plate
+ * Authentic Rickshaw rear tailgate slogans (Sprint 10 Customization)
  */
-export function createHornOkPleaseTexture() {
+export function createHornOkPleaseTexture(sloganId = 'HORN_OK') {
   const canvas = document.createElement('canvas');
   canvas.width = 384;
   canvas.height = 128;
@@ -281,17 +281,43 @@ export function createHornOkPleaseTexture() {
   ctx.lineWidth = 5;
   ctx.strokeRect(8, 8, 368, 112);
 
-  // "HORN OK PLEASE" in vibrant pop-art lettering
-  ctx.fillStyle = '#03045e';
-  ctx.font = '900 34px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('HORN  OK  PLEASE', 192, 42);
 
-  // Classic Demon Face / Slogan: "बुरी नज़र वाले तेरा मुँह काला"
-  ctx.fillStyle = '#d00000';
-  ctx.font = 'bold 21px sans-serif';
-  ctx.fillText('👹 बुरी नज़र वाले तेरा मुँह काला 🌶️', 192, 85);
+  if (sloganId === 'BURI_NAZAR') {
+    ctx.fillStyle = '#d00000';
+    ctx.font = '900 26px sans-serif';
+    ctx.fillText('बुरी नज़र वाले तेरा मुँह काला', 192, 42);
+
+    ctx.fillStyle = '#03045e';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('🌶️ BURI NAZAR WALE... 👁️', 192, 85);
+  } else if (sloganId === 'MERA_BHARAT') {
+    ctx.fillStyle = '#d00000';
+    ctx.font = '900 28px sans-serif';
+    ctx.fillText('🇮🇳 MERA BHARAT MAHAN 🇮🇳', 192, 42);
+
+    ctx.fillStyle = '#03045e';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('★ मेरा भारत महान ★', 192, 85);
+  } else if (sloganId === 'DEKH_MAGAR') {
+    ctx.fillStyle = '#03045e';
+    ctx.font = '900 28px sans-serif';
+    ctx.fillText('👀 DEKH MAGAR PYAAR SE ❤️', 192, 42);
+
+    ctx.fillStyle = '#d00000';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('देख मगर प्यार से!', 192, 85);
+  } else {
+    // Default: Iconic HORN OK PLEASE
+    ctx.fillStyle = '#03045e';
+    ctx.font = '900 34px sans-serif';
+    ctx.fillText('HORN  OK  PLEASE', 192, 42);
+
+    ctx.fillStyle = '#d00000';
+    ctx.font = 'bold 21px sans-serif';
+    ctx.fillText('👹 बुरी नज़र वाले तेरा मुँह काला 🌶️', 192, 85);
+  }
 
   const texture = new THREE.CanvasTexture(canvas);
   return texture;

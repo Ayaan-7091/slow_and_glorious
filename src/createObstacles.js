@@ -233,12 +233,14 @@ export function createObstacles(scene, trackCurve, trackWidth = 14.0) {
     roughness: 0.2,
   });
 
-  // A. Main Body / Torso (Resting / sitting pose)
+  // A. Upper Body / Torso Group (Rises when standing)
+  const cowUpperGroup = new THREE.Group();
+
   const bodyGeo = new THREE.BoxGeometry(1.3, 0.95, 2.2);
   const body = new THREE.Mesh(bodyGeo, cowWhiteMat);
   body.position.set(0, 0.55, 0);
   body.castShadow = true;
-  cowGroup.add(body);
+  cowUpperGroup.add(body);
 
   // Distinctive Desi Zebu Hump over shoulders
   const humpGeo = new THREE.ConeGeometry(0.38, 0.55, 8);
@@ -246,21 +248,23 @@ export function createObstacles(scene, trackCurve, trackWidth = 14.0) {
   hump.rotation.x = -0.2;
   hump.position.set(0, 1.25, 0.45);
   hump.castShadow = true;
-  cowGroup.add(hump);
+  cowUpperGroup.add(hump);
 
   // Flank spots
   const spotGeo = new THREE.BoxGeometry(1.32, 0.5, 0.9);
   const spot = new THREE.Mesh(spotGeo, cowSpotMat);
   spot.position.set(0, 0.6, -0.3);
-  cowGroup.add(spot);
+  cowUpperGroup.add(spot);
 
-  // Folded Legs (Resting tucked under belly)
-  const legGeo = new THREE.BoxGeometry(0.35, 0.28, 0.9);
-  for (let lx of [-0.55, 0.55]) {
+  // Articulated Legs (Expand & extend when standing up)
+  const cowLegs = [];
+  const legGeo = new THREE.BoxGeometry(0.32, 0.28, 0.45);
+  for (let lx of [-0.52, 0.52]) {
     for (let lz of [-0.65, 0.65]) {
       const leg = new THREE.Mesh(legGeo, cowWhiteMat);
       leg.position.set(lx, 0.16, lz);
       cowGroup.add(leg);
+      cowLegs.push({ mesh: leg, baseLx: lx, baseLz: lz });
     }
   }
 
@@ -342,30 +346,58 @@ export function createObstacles(scene, trackCurve, trackWidth = 14.0) {
   rightHorn.rotation.set(-0.25, 0, 0.45);
   neckHeadGroup.add(leftHorn, rightHorn);
 
-  cowGroup.add(neckHeadGroup);
+  cowUpperGroup.add(neckHeadGroup);
 
   // Tail curled along flank
   const tailGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.85, 6);
   const tail = new THREE.Mesh(tailGeo, cowWhiteMat);
   tail.position.set(0.45, 0.35, -1.05);
   tail.rotation.set(0.6, 0, 0.8);
-  cowGroup.add(tail);
+  cowUpperGroup.add(tail);
 
+  cowGroup.add(cowUpperGroup);
   obstaclesGroup.add(cowGroup);
   scene.add(obstaclesGroup);
 
-  // Cow Animation & Horn State
+  // Cow Animation, Horn State & Procedural Stand-Up (Sprint 10)
   let hornReactionTimer = 0;
+  let standingTimer = 0;
+  let currentStandProgress = 0;
   let chewPhase = 0;
 
-  function reactToHorn() {
-    hornReactionTimer = 2.8; // 2.8 seconds of lively comic reaction
+  function reactToHorn(distToPlayer = 0, audio = null) {
+    hornReactionTimer = 3.2; // 3.2 seconds of lively alert head/ear animation
+    if (distToPlayer <= 15.0) {
+      standingTimer = 5.2; // Stands up for 5.2 seconds, then gracefully sits back down
+      if (audio && audio.playCowMoo) {
+        audio.playCowMoo();
+      }
+    }
   }
 
   function update(dt, vehicle, audio, addCameraTrauma) {
     chewPhase += dt * 3.5;
 
-    // 1. COW ANIMATION
+    // 1. COW PROCEDURAL STANDING / SITTING ANIMATION (Sprint 10)
+    const targetStand = standingTimer > 0 ? 1.0 : 0.0;
+    if (standingTimer > 0) {
+      standingTimer -= dt;
+    }
+    currentStandProgress = THREE.MathUtils.lerp(currentStandProgress, targetStand, 3.8 * dt);
+
+    // Torso rises smoothly up
+    cowUpperGroup.position.y = currentStandProgress * 0.72;
+
+    // Legs elongate & straighten into standing posts
+    cowLegs.forEach(({ mesh }) => {
+      mesh.scale.set(
+        1.0 - currentStandProgress * 0.2,
+        1.0 + currentStandProgress * 2.3,
+        1.0 - currentStandProgress * 0.3
+      );
+      mesh.position.y = 0.16 + currentStandProgress * 0.33;
+    });
+
     if (hornReactionTimer > 0) {
       hornReactionTimer -= dt;
       // Alert, startled head perk and quizzical ear wiggle
@@ -390,7 +422,7 @@ export function createObstacles(scene, trackCurve, trackWidth = 14.0) {
     if (distToCow < 3.2) {
       // Soft nudge boundary
       if (distToCow < 1.8) {
-        reactToHorn();
+        reactToHorn(distToCow, audio);
         if (addCameraTrauma) addCameraTrauma(0.2);
       }
     }
@@ -434,6 +466,7 @@ export function createObstacles(scene, trackCurve, trackWidth = 14.0) {
 
   return {
     obstaclesGroup,
+    cowPosition: cowGroup.position,
     reactToHorn,
     update,
   };

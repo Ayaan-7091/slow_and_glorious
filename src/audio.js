@@ -31,6 +31,13 @@ export class AudioManager {
     this.boostNoiseGain = null;
     this.isBoosting = false;
 
+    // Upbeat Desi Arcade BGM Sequencer (Sprint 10)
+    this.isBgmMuted = false;
+    this.bgmGain = null;
+    this.bgmTimer = null;
+    this.bgmStep = 0;
+    this.isBgmPlaying = false;
+
     // Listen for any initial user interaction to start AudioContext
     const unlockAudio = () => {
       this.init();
@@ -371,6 +378,226 @@ export class AudioManager {
   }
 
   /**
+   * Soft, comical cow moo sound synthesized via modulated dual oscillators & formant bandpass filter
+   */
+  playCowMoo() {
+    this.init();
+    if (!this.ctx || this.isMuted) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+
+    const now = this.ctx.currentTime;
+    const dur = 1.35;
+
+    // Dual oscillators (Sawtooth for nasal buzz + Triangle for body)
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    osc1.type = 'sawtooth';
+    osc2.type = 'triangle';
+
+    // Pitch envelope: starts ~240Hz, swells to ~290Hz, slides down to ~175Hz ("M-oooo-ooh")
+    osc1.frequency.setValueAtTime(240, now);
+    osc1.frequency.exponentialRampToValueAtTime(290, now + 0.35);
+    osc1.frequency.exponentialRampToValueAtTime(175, now + dur);
+
+    osc2.frequency.setValueAtTime(120, now);
+    osc2.frequency.exponentialRampToValueAtTime(145, now + 0.35);
+    osc2.frequency.exponentialRampToValueAtTime(88, now + dur);
+
+    // Formant vocal filter
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.Q.value = 3.2;
+    filter.frequency.setValueAtTime(450, now);
+    filter.frequency.exponentialRampToValueAtTime(580, now + 0.35);
+    filter.frequency.exponentialRampToValueAtTime(320, now + dur);
+
+    // Amplitude envelope
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.32, now + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + dur + 0.05);
+    osc2.stop(now + dur + 0.05);
+  }
+
+  // --------------------------------------------------------------------------
+  // UPBEAT DESI ARCADE BGM TRACK (Bhangra / Bollywood 130 BPM Chiptune Groove)
+  // --------------------------------------------------------------------------
+  setupBgm() {
+    if (!this.ctx || this.bgmGain) return;
+    this.bgmGain = this.ctx.createGain();
+    this.bgmGain.gain.setValueAtTime(this.isBgmMuted || this.isMuted ? 0 : 0.28, this.ctx.currentTime);
+    this.bgmGain.connect(this.ctx.destination);
+  }
+
+  startBgm() {
+    this.init();
+    if (!this.ctx || this.isBgmPlaying) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.setupBgm();
+
+    this.isBgmPlaying = true;
+    this.bgmStep = 0;
+
+    // 130 BPM -> 16th note step = ~0.115s
+    const stepTimeMs = (60 / 130 / 4) * 1000;
+
+    // Upbeat Indian Pentatonic / Bilawal Lead Melody Notes (Frequencies in Hz)
+    // C4, D4, E4, G4, A4, C5, D5
+    const N = {
+      REST: 0,
+      C3: 130.81, D3: 146.83, E3: 164.81, G3: 196.00, A3: 220.00,
+      C4: 261.63, D4: 293.66, E4: 329.63, G4: 392.00, A4: 440.00,
+      C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99,
+    };
+
+    // 32-Step Energetic Desi Arcade Melody
+    const leadPattern = [
+      N.C5, N.REST, N.C5, N.D5, N.C5, N.A4, N.G4, N.A4,
+      N.C5, N.C5,   N.D5, N.E5, N.D5, N.REST, N.C5, N.REST,
+      N.E5, N.REST, N.E5, N.D5, N.C5, N.A4, N.G4, N.A4,
+      N.G4, N.A4,   N.C5, N.D5, N.C5, N.REST, N.REST, N.REST,
+    ];
+
+    // Rolling bass pattern
+    const bassPattern = [
+      N.C3, N.REST, N.C3, N.G3, N.C3, N.REST, N.G3, N.C3,
+      N.A3, N.REST, N.A3, N.E3, N.A3, N.REST, N.E3, N.A3,
+      N.F3 || N.C3, N.REST, N.C3, N.G3, N.C3, N.REST, N.G3, N.C3,
+      N.G3, N.REST, N.G3, N.D3, N.G3, N.REST, N.D3, N.G3,
+    ];
+
+    // Dholak / Tabla syncopated rhythm:
+    // Dhol Bass beat on steps: 0, 3, 6, 8, 11, 14, 16, 19, 22, 24, 27, 30
+    // Rim Tap on steps: 2, 4, 7, 10, 12, 15, 18, 20, 23, 26, 28, 31
+    const dholSteps = [0, 3, 6, 8, 11, 14, 16, 19, 22, 24, 27, 30];
+    const tapSteps = [2, 4, 7, 10, 12, 15, 18, 20, 23, 26, 28, 31];
+
+    this.bgmTimer = setInterval(() => {
+      if (!this.ctx || !this.isBgmPlaying) return;
+      if (this.isBgmMuted || this.isMuted) {
+        this.bgmStep = (this.bgmStep + 1) % 32;
+        return;
+      }
+
+      const now = this.ctx.currentTime;
+      const step = this.bgmStep;
+
+      // 1. Dhol Bass Kick
+      if (dholSteps.includes(step)) {
+        const dholOsc = this.ctx.createOscillator();
+        const dholGain = this.ctx.createGain();
+        dholOsc.type = 'sine';
+        dholOsc.frequency.setValueAtTime(115, now);
+        dholOsc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
+
+        dholGain.gain.setValueAtTime(0.26, now);
+        dholGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+        dholOsc.connect(dholGain);
+        dholGain.connect(this.bgmGain);
+        dholOsc.start(now);
+        dholOsc.stop(now + 0.11);
+      }
+
+      // 2. Tabla / Rim Tap Click
+      if (tapSteps.includes(step)) {
+        const tapOsc = this.ctx.createOscillator();
+        const tapGain = this.ctx.createGain();
+        tapOsc.type = 'triangle';
+        tapOsc.frequency.setValueAtTime(1400, now);
+        tapOsc.frequency.exponentialRampToValueAtTime(350, now + 0.035);
+
+        tapGain.gain.setValueAtTime(0.14, now);
+        tapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+        tapOsc.connect(tapGain);
+        tapGain.connect(this.bgmGain);
+        tapOsc.start(now);
+        tapOsc.stop(now + 0.045);
+      }
+
+      // 3. Rolling Bass Synth
+      const bassNote = bassPattern[step];
+      if (bassNote && bassNote > 0) {
+        const bOsc = this.ctx.createOscillator();
+        const bFilter = this.ctx.createBiquadFilter();
+        const bGain = this.ctx.createGain();
+
+        bOsc.type = 'sawtooth';
+        bOsc.frequency.setValueAtTime(bassNote, now);
+
+        bFilter.type = 'lowpass';
+        bFilter.frequency.setValueAtTime(320, now);
+
+        bGain.gain.setValueAtTime(0.18, now);
+        bGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+        bOsc.connect(bFilter);
+        bFilter.connect(bGain);
+        bGain.connect(this.bgmGain);
+        bOsc.start(now);
+        bOsc.stop(now + 0.095);
+      }
+
+      // 4. Chiptune Lead Synth Melody
+      const leadNote = leadPattern[step];
+      if (leadNote && leadNote > 0) {
+        const lOsc = this.ctx.createOscillator();
+        const lFilter = this.ctx.createBiquadFilter();
+        const lGain = this.ctx.createGain();
+
+        lOsc.type = 'triangle';
+        lOsc.frequency.setValueAtTime(leadNote, now);
+
+        lFilter.type = 'lowpass';
+        lFilter.frequency.setValueAtTime(1800, now);
+
+        lGain.gain.setValueAtTime(0.16, now);
+        lGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+        lOsc.connect(lFilter);
+        lFilter.connect(lGain);
+        lGain.connect(this.bgmGain);
+        lOsc.start(now);
+        lOsc.stop(now + 0.125);
+      }
+
+      this.bgmStep = (this.bgmStep + 1) % 32;
+    }, stepTimeMs);
+  }
+
+  stopBgm() {
+    this.isBgmPlaying = false;
+    if (this.bgmTimer) {
+      clearInterval(this.bgmTimer);
+      this.bgmTimer = null;
+    }
+  }
+
+  toggleBgm() {
+    this.isBgmMuted = !this.isBgmMuted;
+    if (this.bgmGain && this.ctx) {
+      this.bgmGain.gain.setValueAtTime(
+        this.isBgmMuted || this.isMuted ? 0 : 0.28,
+        this.ctx.currentTime
+      );
+    }
+    if (!this.isBgmMuted && !this.isBgmPlaying) {
+      this.startBgm();
+    }
+    return !this.isBgmMuted;
+  }
+
+  /**
    * Toggle audio mute
    */
   toggleMute() {
@@ -378,6 +605,12 @@ export class AudioManager {
     if (this.engineGain) {
       this.engineGain.gain.setValueAtTime(
         this.isMuted ? 0 : 0.08,
+        this.ctx?.currentTime || 0
+      );
+    }
+    if (this.bgmGain) {
+      this.bgmGain.gain.setValueAtTime(
+        this.isMuted || this.isBgmMuted ? 0 : 0.28,
         this.ctx?.currentTime || 0
       );
     }

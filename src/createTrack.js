@@ -667,12 +667,24 @@ export function createTrack(scene) {
     });
   }
 
+  function setMonsoonRoad(enabled) {
+    if (enabled) {
+      roadMat.roughness = 0.16;
+      roadMat.metalness = 0.45;
+    } else {
+      roadMat.roughness = 0.88;
+      roadMat.metalness = 0.08;
+    }
+  }
+
   return {
     trackCurve,
     trackWidth,
     trackTotalLength,
     checkpointGates,
     trackCones,
+    roadMat,
+    setMonsoonRoad,
     getClosestTrackPoint,
     checkBoundaryCollision,
     updateConesPhysics,

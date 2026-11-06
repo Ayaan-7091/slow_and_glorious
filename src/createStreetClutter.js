@@ -513,7 +513,200 @@ export function createStreetClutter(scene, trackCurve, trackWidth = 14.0) {
     clutterGroup.add(posterMesh);
   });
 
+  // --------------------------------------------------------------------------
+  // 6. SCATTERING FLOCKS OF DESI STREET PIGEONS (Sprint 10)
+  // --------------------------------------------------------------------------
+  const pigeonFlocks = [];
+  const pigeonBodyMat = new THREE.MeshStandardMaterial({ color: 0x5a6578, roughness: 0.8, flatShading: true });
+  const pigeonCollarMat = new THREE.MeshStandardMaterial({ color: 0x2d6a4f, roughness: 0.6 });
+  const pigeonWingMat = new THREE.MeshStandardMaterial({ color: 0x7c8c9e, roughness: 0.8 });
+  const pigeonBeakMat = new THREE.MeshStandardMaterial({ color: 0xff7b00, roughness: 0.5 });
+
+  function createLowPolyPigeon() {
+    const pigeon = new THREE.Group();
+
+    // Body
+    const bodyGeo = new THREE.BoxGeometry(0.12, 0.12, 0.22);
+    const body = new THREE.Mesh(bodyGeo, pigeonBodyMat);
+    body.position.y = 0.08;
+    body.castShadow = true;
+    pigeon.add(body);
+
+    // Iridescent Neck Collar
+    const collarGeo = new THREE.BoxGeometry(0.09, 0.07, 0.09);
+    const collar = new THREE.Mesh(collarGeo, pigeonCollarMat);
+    collar.position.set(0, 0.13, 0.08);
+    pigeon.add(collar);
+
+    // Head
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 0.16, 0.1);
+    const headGeo = new THREE.BoxGeometry(0.08, 0.08, 0.09);
+    const headMesh = new THREE.Mesh(headGeo, pigeonBodyMat);
+    headGroup.add(headMesh);
+
+    // Beak
+    const beakGeo = new THREE.ConeGeometry(0.02, 0.06, 4);
+    const beak = new THREE.Mesh(beakGeo, pigeonBeakMat);
+    beak.rotation.x = Math.PI / 2;
+    beak.position.set(0, -0.01, 0.06);
+    headGroup.add(beak);
+    pigeon.add(headGroup);
+
+    // Wings (Flap during flight)
+    const wingGeo = new THREE.BoxGeometry(0.18, 0.02, 0.14);
+    const wingL = new THREE.Mesh(wingGeo, pigeonWingMat);
+    wingL.position.set(-0.11, 0.1, 0.01);
+    const wingR = new THREE.Mesh(wingGeo, pigeonWingMat);
+    wingR.position.set(0.11, 0.1, 0.01);
+    pigeon.add(wingL, wingR);
+
+    // Tail feathers
+    const tailGeo = new THREE.BoxGeometry(0.09, 0.015, 0.12);
+    const tailMesh = new THREE.Mesh(tailGeo, pigeonBodyMat);
+    tailMesh.position.set(0, 0.09, -0.14);
+    tailMesh.rotation.x = -0.2;
+    pigeon.add(tailMesh);
+
+    return {
+      group: pigeon,
+      head: headGroup,
+      wingL,
+      wingR,
+      homePos: new THREE.Vector3(),
+      velocity: new THREE.Vector3(),
+      isFlying: false,
+      flightTimer: 0,
+      peckPhase: Math.random() * Math.PI * 2,
+    };
+  }
+
+  // Spawn flocks resting on the road/curb near the fruit/vegetable carts
+  thelaSpans.forEach((tVal, fIdx) => {
+    const pt = trackCurve.getPointAt(tVal);
+    const tan = trackCurve.getTangentAt(tVal).normalize();
+    const right = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+    const side = fIdx % 2 === 0 ? 1 : -1;
+    // Position on curb/road edge (offset ~4.2m)
+    const flockCenter = pt.clone().addScaledVector(right, side * (trackWidth / 2 - 2.8));
+
+    const flock = [];
+    const numPigeons = 5 + (fIdx % 3);
+    for (let i = 0; i < numPigeons; i++) {
+      const p = createLowPolyPigeon();
+      const ox = (Math.random() - 0.5) * 2.2;
+      const oz = (Math.random() - 0.5) * 2.2;
+      p.homePos.set(flockCenter.x + ox, 0.04, flockCenter.z + oz);
+      p.group.position.copy(p.homePos);
+      p.group.rotation.y = Math.random() * Math.PI * 2;
+      clutterGroup.add(p.group);
+      flock.push(p);
+    }
+    pigeonFlocks.push(flock);
+  });
+
+  /**
+   * Animates pigeons pecking on the ground and scattering into the air when vehicles approach
+   */
+  function updatePigeons(dt, vehiclePos, rivals = []) {
+    const now = performance.now() * 0.001;
+
+    pigeonFlocks.forEach((flock) => {
+      // Check if player or any rival is approaching this flock
+      let shouldScatter = false;
+      let threatPos = null;
+
+      if (vehiclePos) {
+        const distToPlayer = flock[0].group.position.distanceTo(vehiclePos);
+        if (distToPlayer < 8.5) {
+          shouldScatter = true;
+          threatPos = vehiclePos;
+        }
+      }
+
+      if (!shouldScatter && rivals && rivals.length > 0) {
+        for (let r of rivals) {
+          if (r.position && flock[0].group.position.distanceTo(r.position) < 8.0) {
+            shouldScatter = true;
+            threatPos = r.position;
+            break;
+          }
+        }
+      }
+
+      flock.forEach((p) => {
+        if (shouldScatter && !p.isFlying) {
+          p.isFlying = true;
+          p.flightTimer = 4.2 + Math.random() * 2.0;
+
+          // Scatter launch velocity: upward + outwards away from vehicle
+          const away = new THREE.Vector3().subVectors(p.group.position, threatPos).normalize();
+          away.y = 0;
+          const launchSpeed = 4.0 + Math.random() * 3.5;
+          p.velocity.set(
+            away.x * launchSpeed + (Math.random() - 0.5) * 2.0,
+            4.8 + Math.random() * 2.5,
+            away.z * launchSpeed + (Math.random() - 0.5) * 2.0
+          );
+        }
+
+        if (p.isFlying) {
+          p.flightTimer -= dt;
+
+          // Physics integration
+          p.group.position.addScaledVector(p.velocity, dt);
+
+          // Furious wing flapping animation during flight
+          const flap = Math.sin(now * 38.0 + p.peckPhase) * 0.75;
+          p.wingL.rotation.z = flap;
+          p.wingR.rotation.z = -flap;
+
+          // Drag and circling behavior
+          if (p.group.position.y > 6.5) {
+            p.velocity.y *= 0.94;
+            p.velocity.x += Math.sin(now * 2.0 + p.peckPhase) * 1.5 * dt;
+            p.velocity.z += Math.cos(now * 2.0 + p.peckPhase) * 1.5 * dt;
+          }
+
+          // Face velocity direction
+          if (p.velocity.lengthSq() > 0.1) {
+            p.group.rotation.y = Math.atan2(p.velocity.x, p.velocity.z);
+          }
+
+          // Landing sequence when flight timer expires
+          if (p.flightTimer <= 0) {
+            // Glide smoothly back towards home position
+            const toHome = new THREE.Vector3().subVectors(p.homePos, p.group.position);
+            p.velocity.lerp(toHome.multiplyScalar(1.2), 2.5 * dt);
+            p.velocity.y = -2.2;
+
+            if (p.group.position.y <= p.homePos.y + 0.05) {
+              p.group.position.copy(p.homePos);
+              p.velocity.set(0, 0, 0);
+              p.isFlying = false;
+              p.wingL.rotation.z = 0;
+              p.wingR.rotation.z = 0;
+            }
+          }
+        } else {
+          // Idle Pecking Animation on Ground
+          p.peckPhase += dt * 4.5;
+          const isPecking = Math.sin(p.peckPhase) > 0.6;
+          p.head.rotation.x = isPecking ? 0.45 : -0.05;
+
+          // Occasional tiny waddle
+          if (Math.sin(p.peckPhase * 0.5) > 0.85) {
+            p.group.rotation.y += (Math.random() - 0.5) * 0.12;
+          }
+        }
+      });
+    });
+  }
+
   scene.add(clutterGroup);
-  return { clutterGroup };
+  return {
+    clutterGroup,
+    updatePigeons,
+  };
 }
 

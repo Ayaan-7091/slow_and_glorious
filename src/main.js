@@ -7,13 +7,15 @@ import { createBazaar } from './createBazaar.js';
 import { createStreetClutter } from './createStreetClutter.js';
 import { createObstacles } from './createObstacles.js';
 import { VoiceSystem } from './createVoiceSystem.js';
-import { SparkParticleSystem, NitroFlameSystem, TireSmokeSystem } from './particles.js';
+import { SparkParticleSystem, NitroFlameSystem, TireSmokeSystem, RainParticleSystem, WaterSplashSystem } from './particles.js';
+import { createGarage } from './createGarage.js';
+import { createPodium } from './createPodium.js';
 import { ControlsManager } from './controls.js';
 import { AudioManager } from './audio.js';
 
 /**
  * ============================================================================
- * 3D AUTO-RICKSHAW ARCADE RACER (SPRINT 4 - INDIAN BAZAAR OVERHAUL)
+ * RICKSHAW BAWAL — 3D INDIAN STREET CIRCUIT
  * Built with Three.js & Vite
  * ============================================================================
  * 
@@ -23,7 +25,7 @@ import { AudioManager } from './audio.js';
  *  2. Dense Indian Bazaar Streetscape: 36+ shop-houses in Jaipur pink, turmeric
  *     yellow, and terracotta with Hindi/English signboards, awnings, and bunting.
  *  3. Textured medium-gray asphalt with white boundary lines and concrete curbs.
- *  4. Pre-Race Difficulty Selector Modal (Easy, Medium, Hard).
+ *  4. Rickshaw Bawal main menu with difficulty and lap selection.
  *  5. Fixed AI Competitor Movement & Acceleration (75-100+ KM/H) + Dynamic Rubber-Banding.
  */
 
@@ -109,8 +111,9 @@ const voiceSystem = new VoiceSystem(audio, scene, camera);
 const originalPlayHorn = audio.playHorn.bind(audio);
 audio.playHorn = () => {
   originalPlayHorn();
-  if (obstacles && obstacles.reactToHorn) {
-    obstacles.reactToHorn();
+  if (obstacles && obstacles.reactToHorn && obstacles.cowPosition && typeof vehicle !== 'undefined' && vehicle.position) {
+    const distToCow = vehicle.position.distanceTo(obstacles.cowPosition);
+    obstacles.reactToHorn(distToCow, audio);
   }
   if (rivalsManager && rivalsManager.rivals && typeof vehicle !== 'undefined' && vehicle.position) {
     let closestRival = null;
@@ -157,10 +160,24 @@ headlightTarget.position.set(0, 0.1, 9.0);
 rickshaw.frontForkGroup.add(headlightTarget);
 headlightBeam.target = headlightTarget;
 
-// Particle systems: Tire drift sparks + Garam Chai Nitro flames + Billowy Tire Smoke
+// Particle systems: Drift sparks + Nitro flames + Tire Smoke + Monsoon Rain & Splashes
 const sparkSystem = new SparkParticleSystem(scene, 90);
 const nitroFlameSystem = new NitroFlameSystem(scene, 60);
 const tireSmokeSystem = new TireSmokeSystem(scene, 90);
+const rainSystem = new RainParticleSystem(scene, 1400);
+const waterSplashSystem = new WaterSplashSystem(scene, 90);
+
+// ----------------------------------------------------------------------------
+// 5.B 3D INTERACTIVE GARAGE SHOWROOM (Sprint 10)
+// ----------------------------------------------------------------------------
+const garage = createGarage(scene);
+// Apply saved custom config to the active player rickshaw
+garage.applyConfigToRickshaw(rickshaw, garage.activeConfig);
+
+// ----------------------------------------------------------------------------
+// 5.C IN-WORLD 3D PODIUM CELEBRATION MONUMENT (Sprint 11)
+// ----------------------------------------------------------------------------
+const podium = createPodium(scene, track.trackCurve, track.trackWidth);
 
 // ----------------------------------------------------------------------------
 // 6. STAGGERED STARTING GRID & VEHICLE STATE
@@ -260,8 +277,12 @@ const restartBtn = document.getElementById('btn-restart-race');
 const lapOptionBtns = document.querySelectorAll('.lap-option-btn');
 lapOptionBtns.forEach((btn) => {
   btn.addEventListener('click', () => {
-    lapOptionBtns.forEach((b) => b.classList.remove('selected'));
+    lapOptionBtns.forEach((b) => {
+      b.classList.remove('selected');
+      b.setAttribute('aria-pressed', 'false');
+    });
     btn.classList.add('selected');
+    btn.setAttribute('aria-pressed', 'true');
     const laps = parseInt(btn.getAttribute('data-laps'), 10) || 3;
     raceState.totalLaps = laps;
     if (lapValueEl) {
@@ -273,12 +294,213 @@ lapOptionBtns.forEach((btn) => {
 // Difficulty Option selection
 diffOptions.forEach((btn) => {
   btn.addEventListener('click', () => {
-    diffOptions.forEach((b) => b.classList.remove('selected'));
+    diffOptions.forEach((b) => {
+      b.classList.remove('selected');
+      b.setAttribute('aria-pressed', 'false');
+    });
     btn.classList.add('selected');
+    btn.setAttribute('aria-pressed', 'true');
     const chosenDiff = btn.dataset.diff;
     rivalsManager.setDifficulty(chosenDiff);
     if (diffHudLabel) diffHudLabel.textContent = chosenDiff;
   });
+});
+
+// ============================================================================
+// 3D INTERACTIVE GARAGE SHOWROOM CONTROLLER (Sprint 10)
+// ============================================================================
+const garageOverlay = document.getElementById('garage-overlay');
+const hudHeader = document.getElementById('hud-header');
+const hudTop = document.querySelector('.hud-top');
+const controlsLegend = document.querySelector('.controls-legend');
+const minimapContainer = document.getElementById('minimap-container');
+const touchControls = document.querySelector('.touch-controls');
+
+function syncGarageUi() {
+  document.querySelectorAll('.archetype-btn').forEach((btn) => {
+    btn.classList.toggle('selected', btn.getAttribute('data-archetype') === garage.activeConfig.archetype);
+  });
+
+  const gGarland = document.getElementById('g-toggle-garland');
+  if (gGarland) gGarland.checked = !!garage.activeConfig.garland;
+
+  const gRoof = document.getElementById('g-toggle-roofrack');
+  if (gRoof) gRoof.checked = !!garage.activeConfig.roofRack;
+}
+
+function openGarage() {
+  if (difficultyModalEl) difficultyModalEl.classList.add('hidden');
+  if (countdownOverlayEl) countdownOverlayEl.classList.add('hidden');
+  if (hudTop) hudTop.style.display = 'none';
+  if (controlsLegend) controlsLegend.style.display = 'none';
+  if (hudHeader) hudHeader.style.display = 'none';
+  if (minimapContainer) minimapContainer.style.display = 'none';
+  if (touchControls) touchControls.style.display = 'none';
+
+  if (garageOverlay) garageOverlay.classList.remove('hidden');
+  garage.setVisible(true);
+  garage.applyConfigToRickshaw(garage.previewRickshaw, garage.activeConfig);
+  syncGarageUi();
+  raceState.mode = 'GARAGE';
+}
+
+function closeGarage() {
+  if (garageOverlay) garageOverlay.classList.add('hidden');
+  garage.setVisible(false);
+  if (hudTop) hudTop.style.display = '';
+  if (controlsLegend) controlsLegend.style.display = '';
+  if (hudHeader) hudHeader.style.display = '';
+  if (minimapContainer) minimapContainer.style.display = '';
+  if (touchControls) touchControls.style.display = '';
+
+  if (difficultyModalEl) difficultyModalEl.classList.remove('hidden');
+  raceState.mode = 'DIFFICULTY_SELECT';
+
+  // Restore camera looking at race starting grid
+  camera.position.set(playerStartPos.x - 2.5, 3.2, playerStartPos.z - 7.5);
+  camera.lookAt(playerStartPos.x, playerStartPos.y + 1.2, playerStartPos.z + 4.0);
+}
+
+// Enter Garage Button (Main Start Screen)
+const enterGarageBtn = document.getElementById('btn-enter-garage');
+if (enterGarageBtn) {
+  enterGarageBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    openGarage();
+  });
+}
+
+// Exit Garage Button
+const garageExitBtn = document.getElementById('btn-garage-exit');
+if (garageExitBtn) {
+  garageExitBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    closeGarage();
+  });
+}
+
+// Save & Race Button
+const saveAndRaceBtn = document.getElementById('btn-save-and-race');
+if (saveAndRaceBtn) {
+  saveAndRaceBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    try {
+      localStorage.setItem('tuktuk_custom_config', JSON.stringify(garage.activeConfig));
+    } catch (err) {
+      console.warn('Could not save custom garage config to localStorage', err);
+    }
+    // Instantly sync custom config onto player active race rickshaw
+    garage.applyConfigToRickshaw(rickshaw, garage.activeConfig);
+    closeGarage();
+  });
+}
+
+// Reset Garage Defaults Button
+const resetGarageBtn = document.getElementById('btn-reset-garage');
+if (resetGarageBtn) {
+  resetGarageBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    garage.activeConfig = {
+      archetype: 'CLASSIC_MUMBAI',
+      garland: true,
+      roofRack: false,
+    };
+    garage.applyConfigToRickshaw(garage.previewRickshaw, garage.activeConfig);
+    syncGarageUi();
+  });
+}
+
+// Archetype Selection
+document.querySelectorAll('.archetype-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const arch = btn.getAttribute('data-archetype');
+    garage.activeConfig.archetype = arch;
+    garage.previewRickshaw.setArchetype(arch);
+    syncGarageUi();
+  });
+});
+
+// Accessories: Marigold Garland
+const gGarland = document.getElementById('g-toggle-garland');
+if (gGarland) {
+  gGarland.addEventListener('change', (e) => {
+    garage.activeConfig.garland = e.target.checked;
+    garage.previewRickshaw.setGarlandVisible(e.target.checked);
+  });
+}
+
+// Accessories: Roof Rack
+const gRoof = document.getElementById('g-toggle-roofrack');
+if (gRoof) {
+  gRoof.addEventListener('change', (e) => {
+    garage.activeConfig.roofRack = e.target.checked;
+    garage.previewRickshaw.setRoofRackVisible(e.target.checked);
+  });
+}
+
+// Bling HUD Action Button (Directly opens 3D Garage)
+const blingHudBtn = document.getElementById('btn-bling-hud');
+if (blingHudBtn) {
+  blingHudBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    openGarage();
+  });
+}
+
+// Monsoon Rain Weather Controller (Sprint 10)
+let isMonsoonActive = false;
+const monsoonHudBtn = document.getElementById('btn-monsoon-hud');
+const monsoonHudLabel = document.getElementById('monsoon-hud-label');
+
+function toggleMonsoon(forceState) {
+  isMonsoonActive = forceState !== undefined ? forceState : !isMonsoonActive;
+  rainSystem.setVisible(isMonsoonActive);
+  if (track && track.setMonsoonRoad) {
+    track.setMonsoonRoad(isMonsoonActive);
+  }
+  if (monsoonHudBtn) {
+    monsoonHudBtn.classList.toggle('active', isMonsoonActive);
+  }
+  if (monsoonHudLabel) {
+    monsoonHudLabel.textContent = isMonsoonActive ? 'MONSOON: ON' : 'MONSOON: OFF';
+  }
+}
+
+if (monsoonHudBtn) {
+  monsoonHudBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleMonsoon();
+  });
+}
+
+// Desi Arcade BGM Controller (Sprint 10)
+const bgmHudBtn = document.getElementById('btn-bgm-hud');
+const bgmHudLabel = document.getElementById('bgm-hud-label');
+
+function toggleBgm() {
+  const isPlaying = audio.toggleBgm();
+  if (bgmHudLabel) {
+    bgmHudLabel.textContent = isPlaying ? 'BGM: ON' : 'BGM: OFF';
+  }
+  if (bgmHudBtn) {
+    bgmHudBtn.classList.toggle('muted', !isPlaying);
+  }
+}
+
+if (bgmHudBtn) {
+  bgmHudBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleBgm();
+  });
+}
+
+// Keyboard shortcuts: P = Monsoon, B = BGM
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyP') {
+    toggleMonsoon();
+  } else if (e.code === 'KeyB') {
+    toggleBgm();
+  }
 });
 
 if (startRaceBtn) {
@@ -330,6 +552,11 @@ function startRaceCountdown() {
   raceState.lastPassedGateIdx = 0;
   raceState.playerPosition = 1;
 
+  // Start upbeat Desi Arcade BGM if not muted
+  if (audio && audio.startBgm) {
+    audio.startBgm();
+  }
+
   // Reset player to front row right
   vehicle.position.copy(playerStartPos);
   vehicle.heading = startGate.heading;
@@ -352,6 +579,12 @@ function startRaceCountdown() {
   // Reset UI
   if (finishModalEl) finishModalEl.classList.add('hidden');
   stopConfetti();
+  if (hudTop) hudTop.style.display = '';
+  if (controlsLegend) controlsLegend.style.display = '';
+  if (hudHeader) hudHeader.style.display = '';
+  if (minimapContainer) minimapContainer.style.display = '';
+  if (touchControls) touchControls.style.display = '';
+
   if (countdownOverlayEl) {
     countdownOverlayEl.classList.remove('hidden');
     countdownTextEl.textContent = '3';
@@ -363,8 +596,31 @@ if (restartBtn) {
   restartBtn.addEventListener('click', (e) => {
     e.preventDefault();
     stopConfetti();
+    if (podium && podium.restoreFinishers) podium.restoreFinishers();
     if (finishModalEl) finishModalEl.classList.add('hidden');
     if (difficultyModalEl) difficultyModalEl.classList.remove('hidden');
+
+    if (hudTop) hudTop.style.display = '';
+    if (controlsLegend) controlsLegend.style.display = '';
+    if (hudHeader) hudHeader.style.display = '';
+    if (minimapContainer) minimapContainer.style.display = '';
+    if (touchControls) touchControls.style.display = '';
+
+    raceState.mode = 'DIFFICULTY_SELECT';
+    // Reset camera facing starting grid
+    camera.position.set(playerStartPos.x - 2.5, 3.2, playerStartPos.z - 7.5);
+    camera.lookAt(playerStartPos.x, playerStartPos.y + 1.2, playerStartPos.z + 4.0);
+  });
+}
+
+const finishGarageBtn = document.getElementById('btn-finish-garage');
+if (finishGarageBtn) {
+  finishGarageBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    stopConfetti();
+    if (podium && podium.restoreFinishers) podium.restoreFinishers();
+    if (finishModalEl) finishModalEl.classList.add('hidden');
+    openGarage();
   });
 }
 
@@ -428,6 +684,13 @@ function updateCheckpoints() {
         // 🏆 FINISHED ENTIRE RACE!
         raceState.mode = 'FINISHED';
         raceState.totalRaceTime = performance.now() - raceState.raceStartTime;
+        // Lock player progress at completed total
+        raceState.playerTotalProgress = raceState.totalLaps + 0.001;
+
+        // How many AI rivals finished all laps before player?
+        const rivalsFinishedBefore = rivalsManager.rivals.filter((r) => r.completedLaps >= raceState.totalLaps).length;
+        raceState.playerPosition = rivalsFinishedBefore + 1;
+
         showRaceFinishedModal();
       }
     } else {
@@ -501,50 +764,68 @@ function stopConfetti() {
 function showRaceFinishedModal() {
   if (!finishModalEl) return;
 
+  // Hide in-race HUD elements during celebratory podium presentation
+  if (hudTop) hudTop.style.display = 'none';
+  if (controlsLegend) controlsLegend.style.display = 'none';
+  if (hudHeader) hudHeader.style.display = 'none';
+  if (minimapContainer) minimapContainer.style.display = 'none';
+  if (touchControls) touchControls.style.display = 'none';
+
   const rank = raceState.playerPosition;
   const suffix = ['th', 'st', 'nd', 'rd', 'th'][rank] || 'th';
   const trophies = ['', '🏆', '🥈', '🥉', '🏁'];
 
-  finishTrophyEl.textContent = trophies[rank] || '🏆';
-  finishRankBadgeEl.textContent = `${rank}${suffix} PLACE`;
+  if (finishTrophyEl) finishTrophyEl.textContent = trophies[rank] || '🏆';
+  if (finishRankBadgeEl) finishRankBadgeEl.textContent = rank === 1 ? '1st PLACE • CHAMPION!' : `${rank}${suffix} PLACE`;
 
-  finishTotalTimeEl.textContent = formatTime(raceState.totalRaceTime);
-  finishBestLapEl.textContent = formatTime(raceState.bestLapTime);
+  if (finishTotalTimeEl) finishTotalTimeEl.textContent = formatTime(raceState.totalRaceTime);
+  if (finishBestLapEl) finishBestLapEl.textContent = formatTime(raceState.bestLapTime);
 
-  // Build Leaderboard List
-  const standings = [
-    { name: 'You (Player)', progress: raceState.playerTotalProgress, isPlayer: true },
-    ...rivalsManager.rivals.map((r) => ({ name: r.name, progress: r.totalProgress, isPlayer: false })),
-  ].sort((a, b) => b.progress - a.progress);
+  // Build Leaderboard List with vehicle references for 3D In-World Podium:
+  // 1. Rivals that completed all laps before player
+  const finishedAheadRivals = rivalsManager.rivals.filter((r) => r.completedLaps >= raceState.totalLaps);
+  // 2. Rivals that haven't finished yet, ordered by totalProgress descending
+  const unfinishedRivals = rivalsManager.rivals
+    .filter((r) => r.completedLaps < raceState.totalLaps)
+    .sort((a, b) => b.totalProgress - a.totalProgress);
 
-  // Populate 3-Tier Visual Podium
-  const pName1 = document.getElementById('podium-name-1');
-  const pName2 = document.getElementById('podium-name-2');
-  const pName3 = document.getElementById('podium-name-3');
-  if (pName1 && standings[0]) pName1.textContent = standings[0].name;
-  if (pName2 && standings[1]) pName2.textContent = standings[1].name;
-  if (pName3 && standings[2]) pName3.textContent = standings[2].name;
-
-  finishLeaderboardListEl.innerHTML = '';
-  standings.forEach((st, idx) => {
-    const row = document.createElement('div');
-    row.className = `lb-row ${st.isPlayer ? 'player' : ''}`;
-    const rankNum = idx + 1;
-    const rankSuffix = ['th', 'st', 'nd', 'rd', 'th'][rankNum] || 'th';
-    const statusText = st.isPlayer ? 'FINISHED' : (rankNum === 1 ? 'WINNER' : `+${(rankNum * 1.6).toFixed(1)}s`);
-
-    row.innerHTML = `
-      <span>${rankNum}${rankSuffix}</span>
-      <span>${st.name}</span>
-      <span style="text-align: right; color: ${st.isPlayer ? '#ffd700' : '#888'};">${statusText}</span>
-    `;
-    finishLeaderboardListEl.appendChild(row);
+  const standings = [];
+  finishedAheadRivals.forEach((r) => {
+    standings.push({
+      name: r.name,
+      isPlayer: false,
+      group: r.instance.group,
+      tiltGroup: r.instance.tiltGroup,
+      frontForkGroup: r.instance.frontForkGroup,
+    });
   });
+
+  // Insert player at their exact finish rank
+  standings.splice(rank - 1, 0, {
+    name: 'You (Player)',
+    isPlayer: true,
+    group: rickshaw.group,
+    tiltGroup: rickshaw.tiltGroup,
+    frontForkGroup: rickshaw.frontForkGroup,
+  });
+
+  unfinishedRivals.forEach((r) => {
+    standings.push({
+      name: r.name,
+      isPlayer: false,
+      group: r.instance.group,
+      tiltGroup: r.instance.tiltGroup,
+      frontForkGroup: r.instance.frontForkGroup,
+    });
+  });
+
+  // Teleport the actual 3D rickshaw meshes onto the in-world 3D podium!
+  podium.placeFinishers(standings);
 
   finishModalEl.classList.remove('hidden');
   startConfetti();
 
-  // Play ElevenLabs winning cheer or grumbling voice line
+  // Play ElevenLabs winning cheer or grumbling voice line from the podium
   try {
     const voiceLine = rank === 1 ? '/new_voices/overtake_1.mp3' : '/new_voices/bump_1.mp3';
     const finishAudio = new Audio(voiceLine);
@@ -783,6 +1064,24 @@ function animate() {
   requestAnimationFrame(animate);
 
   const dt = Math.min(clock.getDelta(), 0.05);
+
+  // -----------------------------------------------------------
+  // GARAGE SHOWROOM MODE (Sprint 10)
+  // -----------------------------------------------------------
+  if (raceState.mode === 'GARAGE') {
+    garage.update(dt, camera);
+    renderer.render(scene, camera);
+    return;
+  }
+
+  // -----------------------------------------------------------
+  // IN-WORLD 3D PODIUM CELEBRATION (Sprint 11)
+  // -----------------------------------------------------------
+  if (raceState.mode === 'FINISHED') {
+    podium.updateCamera(dt, camera);
+    renderer.render(scene, camera);
+    return;
+  }
 
   // Check Respawn Trigger
   if (controls.consumeReset()) {
@@ -1126,12 +1425,44 @@ function animate() {
   tireSmokeSystem.update(dt, camera);
 
   // -----------------------------------------------------------
-  // L. INDIAN STREET HAZARDS & ROAD OBSTACLES (Sprint 9)
+  // L. INTERIOR BLING & SCATTERING PIGEONS (Sprint 10)
+  // -----------------------------------------------------------
+  if (rickshaw.updateInteriorBling) {
+    rickshaw.updateInteriorBling(dt, vehicle);
+  }
+  if (clutter && clutter.updatePigeons) {
+    clutter.updatePigeons(dt, vehicle.position, rivalsManager.rivals);
+  }
+
+  // -----------------------------------------------------------
+  // M. MONSOON RAIN & TIRE WATER SPLASHES (Sprint 10)
+  // -----------------------------------------------------------
+  if (isMonsoonActive) {
+    rainSystem.update(dt, camera.position);
+    if (speedMagnitude > 3.5) {
+      const splashL = new THREE.Vector3(-0.66, 0.04, -0.65)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), vehicle.heading)
+        .add(vehicle.position);
+      const splashR = new THREE.Vector3(0.66, 0.04, -0.65)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), vehicle.heading)
+        .add(vehicle.position);
+      const splashF = new THREE.Vector3(0, 0.04, 1.1)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), vehicle.heading)
+        .add(vehicle.position);
+      waterSplashSystem.emitSplash(splashL, forwardVec, vehicle.speed);
+      waterSplashSystem.emitSplash(splashR, forwardVec, vehicle.speed);
+      waterSplashSystem.emitSplash(splashF, forwardVec, vehicle.speed);
+    }
+  }
+  waterSplashSystem.update(dt, camera);
+
+  // -----------------------------------------------------------
+  // N. INDIAN STREET HAZARDS & ROAD OBSTACLES (Sprint 9)
   // -----------------------------------------------------------
   obstacles.update(dt, vehicle, audio, addCameraTrauma);
 
   // -----------------------------------------------------------
-  // M. DYNAMIC DUSK LIGHTING TRANSITION ACROSS LAPS (Sprint 9)
+  // O. DYNAMIC DUSK LIGHTING TRANSITION ACROSS LAPS (Sprint 9)
   // -----------------------------------------------------------
   const duskFactor = Math.min(1.0, Math.max(0.0, raceState.playerTotalProgress / raceState.totalLaps));
   environment.setDuskProgress(duskFactor);

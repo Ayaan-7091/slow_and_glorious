@@ -759,19 +759,26 @@ export function createBazaar(scene, trackCurve, trackWidth = 14.0) {
     tan.normalize();
     const norm = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
 
-    // --- LEFT SIDE: Roadside Shop + Gap Infill ---
+    // Check distance to 3D Podium Celebration Plaza (-19.06, -143.56)
     const posL = pt.clone().addScaledVector(norm, lateralOffset);
-    if (isSafeDistance(posL.x, posL.z, minClearanceDist + 1.0)) {
-      const storiesL = 2 + (i % 3);
-      const bldgL = createShopHouse(i, storiesL, i, 9.2);
-      bldgL.position.copy(posL);
-      bldgL.lookAt(pt.x, bldgL.position.y, pt.z);
-      bazaarGroup.add(bldgL);
-    } else {
-      const infillL = createInfillGap(i % 4, 7.5);
-      infillL.position.copy(posL);
-      infillL.lookAt(pt.x, infillL.position.y, pt.z);
-      bazaarGroup.add(infillL);
+    const distToPodiumL = Math.hypot(posL.x - (-19.06), posL.z - (-143.56));
+    const isNearPodiumL = distToPodiumL < 34.0;
+
+    // --- LEFT SIDE: Roadside Shop + Gap Infill ---
+    // Leave the Grand Victory Plaza open and unobstructed for 3D Podium & Celebration!
+    if (!isNearPodiumL) {
+      if (isSafeDistance(posL.x, posL.z, minClearanceDist + 1.0)) {
+        const storiesL = 2 + (i % 3);
+        const bldgL = createShopHouse(i, storiesL, i, 9.2);
+        bldgL.position.copy(posL);
+        bldgL.lookAt(pt.x, bldgL.position.y, pt.z);
+        bazaarGroup.add(bldgL);
+      } else {
+        const infillL = createInfillGap(i % 4, 7.5);
+        infillL.position.copy(posL);
+        infillL.lookAt(pt.x, infillL.position.y, pt.z);
+        bazaarGroup.add(infillL);
+      }
     }
 
     // --- RIGHT SIDE: Roadside Shop + Gap Infill ---
@@ -793,7 +800,8 @@ export function createBazaar(scene, trackCurve, trackWidth = 14.0) {
     if (i % 2 === 0) {
       const aptOffsetOut = lateralOffset + 24.0 + (i % 3) * 6.0;
       const aptPosOut = pt.clone().addScaledVector(norm, aptOffsetOut);
-      if (isSafeDistance(aptPosOut.x, aptPosOut.z, minClearanceDist + 5.0)) {
+      const distToPodiumApt = Math.hypot(aptPosOut.x - (-19.06), aptPosOut.z - (-143.56));
+      if (distToPodiumApt >= 34.0 && isSafeDistance(aptPosOut.x, aptPosOut.z, minClearanceDist + 5.0)) {
         const aptStories = 4 + (i % 4);
         const apt = createMidgroundApartment(i, aptStories, 16.0);
         apt.position.copy(aptPosOut);
@@ -828,6 +836,10 @@ export function createBazaar(scene, trackCurve, trackWidth = 14.0) {
 
     const side = k % 2 === 0 ? 1 : -1;
     const curbPos = ptCurb.clone().addScaledVector(normCurb, side * (halfWidth + 1.8));
+
+    // Do not block the celebratory grand entrance to the 3D Podium Plaza
+    const distToPodiumCurb = Math.hypot(curbPos.x - (-19.06), curbPos.z - (-143.56));
+    if (distToPodiumCurb < 24.0) continue;
 
     if (k % 2 === 0) {
       const thela = createCurbSideSabziThela(curbPos, ptCurb);
