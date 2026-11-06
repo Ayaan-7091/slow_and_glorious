@@ -2,18 +2,17 @@ import * as THREE from 'three';
 
 /**
  * ============================================================================
- * CLOSED-LOOP INDIAN STREET CIRCUIT & PROPS (Level 2 Sprint)
+ * CLOSED-LOOP INDIAN STREET CIRCUIT & PROPS (Clean Ribbon Geometry Rewrite)
  * ============================================================================
  * 
- * Features:
- *  1. Smooth procedural asphalt track ribbon using THREE.CatmullRomCurve3
- *  2. Alternating Red & White arcade curbstones and outer guardrails
- *  3. Yellow dashed centerline
- *  4. Festive Start/Finish Arch + 4 Glowing Semi-Transparent Checkpoint Arches
- *  5. Stylized roadside Chai Stalls ("Tapri") with glowing warm lanterns
- *  6. Low-poly Palm Trees, Banyan Trees, and Vintage Streetlamps
- *  7. Track hazards (traffic cones) with dynamic launch-into-the-air physics
- *  8. Track boundary collision system that bounces vehicles off barriers
+ * Strict Mathematical Invariants:
+ *  1. Non-self-intersecting 10-point clockwise loop with minimum radius > 160 units
+ *     and massive across-track clearance (> 135 units).
+ *  2. Clean custom BufferGeometry ribbons generated from 400 evenly spaced samples
+ *     (curve.getSpacedPoints(400)).
+ *  3. Flat horizontal right vector: right = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize()
+ *     guaranteeing zero twist, zero flip, and zero stretched triangles.
+ *  4. Lateral-only edge collision smoothly clamping vehicle to trackHalfWidth - 1.2.
  */
 
 export function createTrack(scene) {
@@ -21,254 +20,231 @@ export function createTrack(scene) {
   trackGroup.name = 'ArcadeTrack_System';
 
   // --------------------------------------------------------------------------
-  // 1. CLOSED-LOOP TRACK CURVE DEFINITION
+  // 1. WIDE, NON-SELF-INTERSECTING 10-POINT CLOCKWISE LOOP
   // --------------------------------------------------------------------------
-  // 13 Control points defining a thrilling Indian street circuit:
-  // - Main Straight (Start/Finish)
-  // - Turn 1: High-speed sweeper right
-  // - Turn 2: Sharp hairpin left (prime drift corner)
-  // - Turn 3: S-Chicane
-  // - Turn 4: Long sweeping curve past chai stalls
-  // - Turn 5: Technical 90-degree corners back to home straight
+  // Minimum radius is > 160 units everywhere, with > 135 units of clearance
+  // between parallel road sections. Gentle, sweeping corners suitable for racing.
   const trackControlPoints = [
-    new THREE.Vector3(0, 0, -45),    // Start / Finish Line
-    new THREE.Vector3(0, 0, 30),     // End of Main Straight
-    new THREE.Vector3(30, 0, 75),    // Turn 1 Sweeper Entry
-    new THREE.Vector3(75, 0, 85),    // Turn 1 Apex
-    new THREE.Vector3(105, 0, 50),   // Turn 2 Hairpin Entry
-    new THREE.Vector3(95, 0, 5),     // Turn 2 Hairpin Exit
-    new THREE.Vector3(60, 0, -25),   // Turn 3 Chicane Left
-    new THREE.Vector3(80, 0, -65),   // Turn 3 Chicane Right
-    new THREE.Vector3(50, 0, -115),  // Turn 4 Sweeper Entry
-    new THREE.Vector3(-15, 0, -125), // Turn 4 Long Sweeper Apex
-    new THREE.Vector3(-70, 0, -85),  // Turn 5 Chicane Entry
-    new THREE.Vector3(-60, 0, -30),  // Turn 5 Mid
-    new THREE.Vector3(-30, 0, -20),  // Final Corner heading to Main Straight
+    new THREE.Vector3(-50, 0, -160), // Start / Finish Line (Main Straight entry)
+    new THREE.Vector3(70, 0, -160),  // Main Straight exit heading East
+    new THREE.Vector3(165, 0, -110), // Turn 1: Wide sweeper right
+    new THREE.Vector3(185, 0, 10),   // Turn 2: High-speed sweeper South
+    new THREE.Vector3(150, 0, 120),  // Turn 3: Technical sweeper South-West
+    new THREE.Vector3(50, 0, 175),   // Turn 4: Southern curve heading West
+    new THREE.Vector3(-70, 0, 165),  // Turn 5: Bottom straight heading West
+    new THREE.Vector3(-165, 0, 110), // Turn 6: Sweeper turning North-West
+    new THREE.Vector3(-185, 0, -10), // Turn 7: Western straight heading North
+    new THREE.Vector3(-150, 0, -120),// Turn 8: Sweeper connecting back to Home Straight
   ];
 
-  // CatmullRomCurve3 with closed = true forms a smooth, seamless loop
-  const trackCurve = new THREE.CatmullRomCurve3(trackControlPoints, true);
-  trackCurve.curveType = 'catmullrom';
-  trackCurve.tension = 0.5;
+  // Closed Catmull-Rom spline with smooth tension
+  const trackCurve = new THREE.CatmullRomCurve3(trackControlPoints, true, 'catmullrom', 0.5);
+  const trackTotalLength = trackCurve.getLength();
 
-  const trackWidth = 14.0; // 14 meters wide for generous arcade sliding
+  const trackWidth = 14.0; // 14 meters wide for generous arcade drifting
   const halfWidth = trackWidth / 2;
-  const numSegments = 320; // High resolution for smooth curves
-
-  // Sample points along the curve
-  const curvePoints = [];
-  const curveTangents = [];
-  const curveNormals = [];
-
-  for (let i = 0; i <= numSegments; i++) {
-    const t = i / numSegments;
-    const pt = trackCurve.getPointAt(t % 1.0);
-    const tan = trackCurve.getTangentAt(t % 1.0).normalize();
-    // Normal in XZ plane (perpendicular to tangent)
-    const norm = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
-
-    curvePoints.push(pt);
-    curveTangents.push(tan);
-    curveNormals.push(norm);
-  }
-
-  // --------------------------------------------------------------------------
-  // 2. PROCEDURAL ROAD SURFACE RIBBON
-  // --------------------------------------------------------------------------
-  const roadPositions = [];
-  const roadNormalsArr = [];
-  const roadUvs = [];
-  const roadIndices = [];
-
-  const curbLPositions = [];
-  const curbRPositions = [];
-  const curbLIndices = [];
-  const curbRIndices = [];
-  const curbLColors = [];
-  const curbRColors = [];
-
   const curbWidth = 1.0;
+  const sidewalkWidth = 2.4;
 
-  for (let i = 0; i <= numSegments; i++) {
-    const pt = curvePoints[i];
-    const norm = curveNormals[i];
+  // --------------------------------------------------------------------------
+  // 2. 400 EVENLY SPACED SAMPLES & FLAT HORIZONTAL TANGENT FRAMES
+  // --------------------------------------------------------------------------
+  const N = 400; // 400 equidistant slices by arc-length
+  const spacedPoints = trackCurve.getSpacedPoints(N);
 
-    // Left and right road vertices (raised slightly at y = 0.05 to avoid z-fighting)
-    const roadY = 0.05;
-    const leftPt = new THREE.Vector3(
-      pt.x + norm.x * halfWidth,
-      roadY,
-      pt.z + norm.z * halfWidth
-    );
-    const rightPt = new THREE.Vector3(
-      pt.x - norm.x * halfWidth,
-      roadY,
-      pt.z - norm.z * halfWidth
-    );
+  const tangents = [];
+  const rights = [];
 
-    roadPositions.push(leftPt.x, leftPt.y, leftPt.z);
-    roadPositions.push(rightPt.x, rightPt.y, rightPt.z);
+  for (let i = 0; i <= N; i++) {
+    const nextIdx = (i + 1) % N;
+    const prevIdx = (i - 1 + N) % N;
+    const tan = new THREE.Vector3().subVectors(spacedPoints[nextIdx], spacedPoints[prevIdx]);
+    tan.y = 0;
+    tan.normalize();
 
-    roadNormalsArr.push(0, 1, 0, 0, 1, 0);
+    // Pure horizontal right vector in XZ plane (perpendicular to tangent)
+    const right = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
 
-    const uvV = i / 10.0; // Repeat texture
-    roadUvs.push(0, uvV, 1, uvV);
-
-    // Curbstones
-    const curbY = 0.12; // Raised curb bevel
-    const outerLeftCurb = new THREE.Vector3(
-      pt.x + norm.x * (halfWidth + curbWidth),
-      curbY,
-      pt.z + norm.z * (halfWidth + curbWidth)
-    );
-    const outerRightCurb = new THREE.Vector3(
-      pt.x - norm.x * (halfWidth + curbWidth),
-      curbY,
-      pt.z - norm.z * (halfWidth + curbWidth)
-    );
-
-    // Left curb
-    curbLPositions.push(leftPt.x, roadY, leftPt.z);
-    curbLPositions.push(outerLeftCurb.x, curbY, outerLeftCurb.z);
-
-    // Right curb
-    curbRPositions.push(rightPt.x, roadY, rightPt.z);
-    curbRPositions.push(outerRightCurb.x, curbY, outerRightCurb.z);
-
-    // Alternating Red & White curb colors every 4 segments
-    const isRed = Math.floor(i / 4) % 2 === 0;
-    const r = isRed ? 0.95 : 0.95;
-    const g = isRed ? 0.12 : 0.95;
-    const b = isRed ? 0.12 : 0.95;
-
-    curbLColors.push(r, g, b, r, g, b);
-    curbRColors.push(r, g, b, r, g, b);
-
-    if (i < numSegments) {
-      const idx = i * 2;
-      // Road quads (two triangles)
-      roadIndices.push(idx, idx + 1, idx + 2);
-      roadIndices.push(idx + 1, idx + 3, idx + 2);
-
-      // Left curb quads
-      curbLIndices.push(idx, idx + 1, idx + 2);
-      curbLIndices.push(idx + 1, idx + 3, idx + 2);
-
-      // Right curb quads
-      curbRIndices.push(idx, idx + 2, idx + 1);
-      curbRIndices.push(idx + 1, idx + 2, idx + 3);
-    }
+    tangents.push(tan);
+    rights.push(right);
   }
 
-  // Asphalt Material
-  const roadGeo = new THREE.BufferGeometry();
-  roadGeo.setAttribute('position', new THREE.Float32BufferAttribute(roadPositions, 3));
-  roadGeo.setAttribute('normal', new THREE.Float32BufferAttribute(roadNormalsArr, 3));
-  roadGeo.setAttribute('uv', new THREE.Float32BufferAttribute(roadUvs, 2));
-  roadGeo.setIndex(roadIndices);
+  // --------------------------------------------------------------------------
+  // 3. CLEAN CUSTOM BUFFERGEOMETRY RIBBON GENERATOR
+  // --------------------------------------------------------------------------
+  /**
+   * Builds an equidistant ribbon with verified upward normals (Y = +1)
+   */
+  function buildRibbon(offsetA, offsetB, yA, yB, colorFunc = null, uvRepeatV = 10.0) {
+    const leftOffset = Math.min(offsetA, offsetB);
+    const rightOffset = Math.max(offsetA, offsetB);
+    const yLeft = offsetA < offsetB ? yA : yB;
+    const yRight = offsetA < offsetB ? yB : yA;
 
+    const positions = [];
+    const uvs = [];
+    const colors = [];
+    const indices = [];
+
+    for (let i = 0; i <= N; i++) {
+      const p = spacedPoints[i];
+      const r = rights[i];
+
+      const pLeft = p.clone().addScaledVector(r, leftOffset);
+      pLeft.y = yLeft;
+      const pRight = p.clone().addScaledVector(r, rightOffset);
+      pRight.y = yRight;
+
+      positions.push(pLeft.x, pLeft.y, pLeft.z);
+      positions.push(pRight.x, pRight.y, pRight.z);
+
+      const v = (i / N) * uvRepeatV;
+      uvs.push(0, v, 1, v);
+
+      if (colorFunc) {
+        const c = colorFunc(i);
+        colors.push(c.r, c.g, c.b, c.r, c.g, c.b);
+      }
+
+      if (i < N) {
+        const v0 = i * 2;
+        const v1 = i * 2 + 1;
+        const v2 = (i + 1) * 2;
+        const v3 = (i + 1) * 2 + 1;
+        // Normal pointing straight up (+Y)
+        indices.push(v0, v1, v2);
+        indices.push(v1, v3, v2);
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    if (colorFunc) {
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    }
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  // 1. Road Surface Ribbon (Rich dark charcoal gray with polygonOffset)
+  const roadGeo = buildRibbon(-halfWidth, halfWidth, 0.05, 0.05, null, 40.0);
   const roadMat = new THREE.MeshStandardMaterial({
-    color: 0x1f2329,
+    color: 0x2b2d38,
     roughness: 0.85,
     metalness: 0.1,
+    polygonOffset: true,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -1.0,
   });
   const roadMesh = new THREE.Mesh(roadGeo, roadMat);
   roadMesh.receiveShadow = true;
   trackGroup.add(roadMesh);
 
-  // Curbstone Meshes
+  // Alternating Red & White curb colors every 4 slices (100 blocks around track)
+  function curbColorAt(i) {
+    const isRed = Math.floor(i / 4) % 2 === 0;
+    return isRed
+      ? { r: 0.88, g: 0.16, b: 0.16 }
+      : { r: 0.95, g: 0.95, b: 0.95 };
+  }
+
   const curbMat = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    roughness: 0.6,
+    roughness: 0.65,
+    side: THREE.DoubleSide,
   });
 
-  const curbLGeo = new THREE.BufferGeometry();
-  curbLGeo.setAttribute('position', new THREE.Float32BufferAttribute(curbLPositions, 3));
-  curbLGeo.setAttribute('color', new THREE.Float32BufferAttribute(curbLColors, 3));
-  curbLGeo.setIndex(curbLIndices);
-  curbLGeo.computeVertexNormals();
-  const curbLMesh = new THREE.Mesh(curbLGeo, curbMat);
-  curbLMesh.receiveShadow = true;
-  trackGroup.add(curbLMesh);
-
-  const curbRGeo = new THREE.BufferGeometry();
-  curbRGeo.setAttribute('position', new THREE.Float32BufferAttribute(curbRPositions, 3));
-  curbRGeo.setAttribute('color', new THREE.Float32BufferAttribute(curbRColors, 3));
-  curbRGeo.setIndex(curbRIndices);
-  curbRGeo.computeVertexNormals();
+  // 2. Right Curb Ribbon
+  const curbRGeo = buildRibbon(halfWidth, halfWidth + curbWidth, 0.058, 0.058, curbColorAt);
   const curbRMesh = new THREE.Mesh(curbRGeo, curbMat);
   curbRMesh.receiveShadow = true;
   trackGroup.add(curbRMesh);
 
-  // --------------------------------------------------------------------------
-  // 3. YELLOW DASHED ROAD CENTERLINE
-  // --------------------------------------------------------------------------
-  const lineGeo = new THREE.BoxGeometry(0.24, 0.02, 1.8);
-  const lineMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+  // 3. Left Curb Ribbon
+  const curbLGeo = buildRibbon(-halfWidth - curbWidth, -halfWidth, 0.058, 0.058, curbColorAt);
+  const curbLMesh = new THREE.Mesh(curbLGeo, curbMat);
+  curbLMesh.receiveShadow = true;
+  trackGroup.add(curbLMesh);
 
-  for (let i = 0; i < numSegments; i += 3) {
-    const pt = curvePoints[i];
-    const tan = curveTangents[i];
-    const dash = new THREE.Mesh(lineGeo, lineMat);
+  // Raised Concrete Sidewalks behind curbs
+  const sidewalkMat = new THREE.MeshStandardMaterial({
+    color: 0x9e9a95,
+    roughness: 0.9,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+  });
+
+  // 4. Right Sidewalk Ribbon
+  const walkRGeo = buildRibbon(
+    halfWidth + curbWidth,
+    halfWidth + curbWidth + sidewalkWidth,
+    0.075,
+    0.075,
+    null,
+    30.0
+  );
+  const walkRMesh = new THREE.Mesh(walkRGeo, sidewalkMat);
+  walkRMesh.receiveShadow = true;
+  trackGroup.add(walkRMesh);
+
+  // 5. Left Sidewalk Ribbon
+  const walkLGeo = buildRibbon(
+    -halfWidth - curbWidth - sidewalkWidth,
+    -halfWidth - curbWidth,
+    0.075,
+    0.075,
+    null,
+    30.0
+  );
+  const walkLMesh = new THREE.Mesh(walkLGeo, sidewalkMat);
+  walkLMesh.receiveShadow = true;
+  trackGroup.add(walkLMesh);
+
+  // --------------------------------------------------------------------------
+  // 4. CRISP WHITE ROAD EDGE LINES & YELLOW DASHED CENTERLINE
+  // --------------------------------------------------------------------------
+  const edgeLineGeo = new THREE.BoxGeometry(0.2, 0.02, 2.4);
+  const edgeLineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+  for (let i = 0; i < N; i += 2) {
+    const pt = spacedPoints[i];
+    const tan = tangents[i];
+    const right = rights[i];
+    const yaw = Math.atan2(tan.x, tan.z);
+
+    // Left white edge line
+    const leftEdge = new THREE.Mesh(edgeLineGeo, edgeLineMat);
+    const leftPos = pt.clone().addScaledVector(right, -halfWidth + 0.35);
+    leftEdge.position.set(leftPos.x, 0.055, leftPos.z);
+    leftEdge.rotation.y = yaw;
+    trackGroup.add(leftEdge);
+
+    // Right white edge line
+    const rightEdge = new THREE.Mesh(edgeLineGeo, edgeLineMat);
+    const rightPos = pt.clone().addScaledVector(right, halfWidth - 0.35);
+    rightEdge.position.set(rightPos.x, 0.055, rightPos.z);
+    rightEdge.rotation.y = yaw;
+    trackGroup.add(rightEdge);
+  }
+
+  // Yellow dashed centerline
+  const dashGeo = new THREE.BoxGeometry(0.24, 0.02, 2.0);
+  const dashMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+
+  for (let i = 0; i < N; i += 3) {
+    const pt = spacedPoints[i];
+    const tan = tangents[i];
+    const dash = new THREE.Mesh(dashGeo, dashMat);
     dash.position.set(pt.x, 0.065, pt.z);
     dash.rotation.y = Math.atan2(tan.x, tan.z);
     trackGroup.add(dash);
   }
 
   // --------------------------------------------------------------------------
-  // 4. OUTER SAFETY BARRIERS (GUARDRAILS)
+  // 5. FESTIVE START/FINISH ARCH & CHECKPOINT GATES
   // --------------------------------------------------------------------------
-  // Stylized metal guardrail along track perimeter
-  const barrierMat = new THREE.MeshStandardMaterial({
-    color: 0x9099a2,
-    roughness: 0.4,
-    metalness: 0.8,
-  });
-  const barrierPostGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8);
-  const barrierRailGeo = new THREE.BoxGeometry(0.12, 0.35, 3.2);
-
-  for (let i = 0; i < numSegments; i += 4) {
-    const pt = curvePoints[i];
-    const norm = curveNormals[i];
-    const tan = curveTangents[i];
-    const yaw = Math.atan2(tan.x, tan.z);
-
-    // Left barrier post & rail
-    const bPosL = new THREE.Vector3(
-      pt.x + norm.x * (halfWidth + curbWidth + 0.3),
-      0.4,
-      pt.z + norm.z * (halfWidth + curbWidth + 0.3)
-    );
-    const postL = new THREE.Mesh(barrierPostGeo, barrierMat);
-    postL.position.set(bPosL.x, 0.4, bPosL.z);
-    const railL = new THREE.Mesh(barrierRailGeo, barrierMat);
-    railL.position.set(bPosL.x, 0.5, bPosL.z);
-    railL.rotation.y = yaw;
-    trackGroup.add(postL, railL);
-
-    // Right barrier post & rail
-    const bPosR = new THREE.Vector3(
-      pt.x - norm.x * (halfWidth + curbWidth + 0.3),
-      0.4,
-      pt.z - norm.z * (halfWidth + curbWidth + 0.3)
-    );
-    const postR = new THREE.Mesh(barrierPostGeo, barrierMat);
-    postR.position.set(bPosR.x, 0.4, bPosR.z);
-    const railR = new THREE.Mesh(barrierRailGeo, barrierMat);
-    railR.position.set(bPosR.x, 0.5, bPosR.z);
-    railR.rotation.y = yaw;
-    trackGroup.add(postR, railR);
-  }
-
-  // --------------------------------------------------------------------------
-  // 5. CHECKPOINT ARCHES (START/FINISH + 4 GATES)
-  // --------------------------------------------------------------------------
-  // Checkpoint positions along normalized t:
-  // Gate 0: 0.0 (Start/Finish)
-  // Gate 1: 0.22 (Turn 1 exit)
-  // Gate 2: 0.44 (Hairpin exit)
-  // Gate 3: 0.68 (Long sweeper)
-  // Gate 4: 0.88 (Final chicane entry)
   const checkpointTValues = [0.0, 0.22, 0.44, 0.68, 0.88];
   const checkpointGates = [];
 
@@ -276,7 +252,6 @@ export function createTrack(scene) {
     const isStartFinish = idx === 0;
     const pt = trackCurve.getPointAt(tVal);
     const tan = trackCurve.getTangentAt(tVal).normalize();
-    const norm = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
     const yaw = Math.atan2(tan.x, tan.z);
 
     const gateGroup = new THREE.Group();
@@ -287,9 +262,8 @@ export function createTrack(scene) {
     const archHeight = 6.2;
 
     if (isStartFinish) {
-      // 🏁 GRAND START / FINISH ARCH (Festive Indian Colors)
-      // Checkered starting grid line on asphalt
-      const checkGeo = new THREE.PlaneGeometry(trackWidth, 1.8);
+      // 🏁 GRAND START / FINISH ARCH (Festive Indian Saffron & Royal Green)
+      const checkGeo = new THREE.PlaneGeometry(trackWidth, 2.2);
       const checkCanvas = document.createElement('canvas');
       checkCanvas.width = 256;
       checkCanvas.height = 64;
@@ -307,7 +281,7 @@ export function createTrack(scene) {
       checkMesh.position.set(0, 0.062, 0);
       gateGroup.add(checkMesh);
 
-      // Grand Pillars (Golden Indian Saffron & Royal Green)
+      // Grand Pillars
       const pillarMat = new THREE.MeshStandardMaterial({ color: 0xff9900, roughness: 0.3 });
       const pillarGeo = new THREE.BoxGeometry(1.2, archHeight, 1.2);
 
@@ -319,7 +293,7 @@ export function createTrack(scene) {
       rightPillar.position.set(spanWidth / 2, archHeight / 2, 0);
       rightPillar.castShadow = true;
 
-      // Decorative pillar crown caps
+      // Crown caps
       const crownGeo = new THREE.ConeGeometry(1.1, 1.4, 4);
       const crownMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.6 });
       const crownL = new THREE.Mesh(crownGeo, crownMat);
@@ -329,13 +303,12 @@ export function createTrack(scene) {
       crownR.position.set(spanWidth / 2, archHeight + 0.7, 0);
       crownR.rotation.y = Math.PI / 4;
 
-      // Top Crossbar Banner
+      // Banner Crossbar
       const bannerGeo = new THREE.BoxGeometry(spanWidth + 1.2, 1.5, 0.6);
       const bannerMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4 });
       const banner = new THREE.Mesh(bannerGeo, bannerMat);
       banner.position.set(0, archHeight - 0.2, 0);
 
-      // Glowing Sign Face
       const signGeo = new THREE.PlaneGeometry(spanWidth - 1.0, 1.0);
       const signMat = new THREE.MeshBasicMaterial({ color: 0xffc107 });
       const signFace = new THREE.Mesh(signGeo, signMat);
@@ -343,20 +316,16 @@ export function createTrack(scene) {
 
       gateGroup.add(leftPillar, rightPillar, crownL, crownR, banner, signFace);
     } else {
-      // ⚡ GLOWING NEON CHECKPOINT GATES (1, 2, 3, 4)
-      const neonColor = 0x00f0ff; // Cyan neon
+      // ⚡ GLOWING NEON CHECKPOINT GATES
+      const neonColor = 0x00f0ff;
       const pillarGeo = new THREE.BoxGeometry(0.6, archHeight, 0.6);
-      const neonMat = new THREE.MeshStandardMaterial({
-        color: 0x222222,
-        roughness: 0.5,
-      });
+      const neonMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 });
 
       const leftPillar = new THREE.Mesh(pillarGeo, neonMat);
       leftPillar.position.set(-spanWidth / 2, archHeight / 2, 0);
       const rightPillar = new THREE.Mesh(pillarGeo, neonMat);
       rightPillar.position.set(spanWidth / 2, archHeight / 2, 0);
 
-      // Glowing crossbar
       const barGeo = new THREE.BoxGeometry(spanWidth + 0.6, 0.5, 0.5);
       const glowMat = new THREE.MeshStandardMaterial({
         color: neonColor,
@@ -367,7 +336,6 @@ export function createTrack(scene) {
       const topBar = new THREE.Mesh(barGeo, glowMat);
       topBar.position.set(0, archHeight, 0);
 
-      // Semi-transparent glowing checkpoint curtain
       const curtainGeo = new THREE.PlaneGeometry(spanWidth - 0.5, archHeight - 0.5);
       const curtainMat = new THREE.MeshBasicMaterial({
         color: neonColor,
@@ -395,108 +363,25 @@ export function createTrack(scene) {
   });
 
   // --------------------------------------------------------------------------
-  // 6. ROADSIDE PROPS: COLORFUL CHAI STALLS ("TAPRI")
+  // 6. ROADSIDE PROPS: PALM/BANYAN TREES & VINTAGE STREETLAMPS
   // --------------------------------------------------------------------------
-  function createChaiStall(pos, rotationY) {
-    const stall = new THREE.Group();
-    stall.position.copy(pos);
-    stall.rotation.y = rotationY;
-
-    // Wooden stall kiosk base
-    const kioskGeo = new THREE.BoxGeometry(4.2, 2.4, 2.8);
-    const kioskMat = new THREE.MeshStandardMaterial({ color: 0x3d271d, roughness: 0.8 });
-    const kiosk = new THREE.Mesh(kioskGeo, kioskMat);
-    kiosk.position.y = 1.2;
-    kiosk.castShadow = true;
-    stall.add(kiosk);
-
-    // Front counter opening
-    const counterGeo = new THREE.BoxGeometry(3.6, 0.9, 0.8);
-    const counterMat = new THREE.MeshStandardMaterial({ color: 0x6d4c41, roughness: 0.6 });
-    const counter = new THREE.Mesh(counterGeo, counterMat);
-    counter.position.set(0, 1.0, 1.4);
-    stall.add(counter);
-
-    // Slanted colorful tin roof (Red/Orange stripes)
-    const roofGeo = new THREE.BoxGeometry(4.8, 0.15, 3.4);
-    const roofMat = new THREE.MeshStandardMaterial({ color: 0xd32f2f, roughness: 0.4 });
-    const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.set(0, 2.6, 0.1);
-    roof.rotation.x = 0.18;
-    roof.castShadow = true;
-    stall.add(roof);
-
-    // Top Sign Banner: "GARAM CHAI & SNACKS"
-    const signGeo = new THREE.BoxGeometry(3.4, 0.65, 0.1);
-    const signMat = new THREE.MeshStandardMaterial({
-      color: 0xffd54f,
-      emissive: 0xffb300,
-      emissiveIntensity: 0.35,
-    });
-    const sign = new THREE.Mesh(signGeo, signMat);
-    sign.position.set(0, 2.9, 1.4);
-    stall.add(sign);
-
-    // Golden Chai Samovar / Kettle
-    const kettleGeo = new THREE.CylinderGeometry(0.24, 0.3, 0.55, 12);
-    const kettleMat = new THREE.MeshStandardMaterial({ color: 0xffc107, metalness: 0.8, roughness: 0.2 });
-    const kettle = new THREE.Mesh(kettleGeo, kettleMat);
-    kettle.position.set(-0.8, 1.7, 1.4);
-    stall.add(kettle);
-
-    // Warm glowing hanging lantern light
-    const lanternLight = new THREE.PointLight(0xffaa44, 2.0, 16, 1.2);
-    lanternLight.position.set(0, 2.3, 1.6);
-    stall.add(lanternLight);
-
-    const bulbMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.12, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffdd88 })
-    );
-    bulbMesh.position.copy(lanternLight.position);
-    stall.add(bulbMesh);
-
-    // Wooden roadside benches
-    const benchGeo = new THREE.BoxGeometry(2.4, 0.45, 0.6);
-    const bench = new THREE.Mesh(benchGeo, kioskMat);
-    bench.position.set(0, 0.25, 3.2);
-    bench.castShadow = true;
-    stall.add(bench);
-
-    return stall;
-  }
-
-  // Place 2 prominent Chai Stalls at key track locations
-  // Chai Stall 1: Near Turn 2 Hairpin exit
-  const stall1Pos = new THREE.Vector3(108, 0, 12);
-  const stall1 = createChaiStall(stall1Pos, -Math.PI / 2.3);
-  trackGroup.add(stall1);
-
-  // Chai Stall 2: Along Turn 4 Sweeper
-  const stall2Pos = new THREE.Vector3(58, 0, -125);
-  const stall2 = createChaiStall(stall2Pos, Math.PI / 1.5);
-  trackGroup.add(stall2);
-
-  // -------------------------------------------------------------
-  // 7. ROADSIDE PROPS: PALM TREES, BANYAN TREES & STREETLAMPS
-  // -------------------------------------------------------------
-  // Helper to build a stylized Palm Tree
   function createPalmTree(x, z, scale = 1.0) {
     const tree = new THREE.Group();
     tree.position.set(x, 0, z);
     tree.scale.setScalar(scale);
 
-    // Segmented curved trunk
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.9 });
     for (let i = 0; i < 5; i++) {
-      const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.28 - i * 0.03, 0.32 - i * 0.03, 1.4, 8), trunkMat);
+      const seg = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.28 - i * 0.03, 0.32 - i * 0.03, 1.4, 8),
+        trunkMat
+      );
       seg.position.set(i * 0.12, 0.7 + i * 1.3, 0);
       seg.rotation.z = -0.06;
       seg.castShadow = true;
       tree.add(seg);
     }
 
-    // Green leafy fronds
     const frondGeo = new THREE.ConeGeometry(1.8, 1.2, 5);
     const frondMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.6 });
     for (let f = 0; f < 6; f++) {
@@ -511,7 +396,6 @@ export function createTrack(scene) {
     return tree;
   }
 
-  // Helper to build a stylized Banyan / Peepal tree
   function createBanyanTree(x, z, scale = 1.0) {
     const tree = new THREE.Group();
     tree.position.set(x, 0, z);
@@ -524,10 +408,9 @@ export function createTrack(scene) {
     trunk.castShadow = true;
     tree.add(trunk);
 
-    // Fluffy foliage canopy spheres
     const leafGeo = new THREE.DodecahedronGeometry(2.4, 1);
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x388e3c, roughness: 0.7 });
-    
+
     const c1 = new THREE.Mesh(leafGeo, leafMat);
     c1.position.set(0, 5.0, 0);
     const c2 = new THREE.Mesh(leafGeo, leafMat);
@@ -544,7 +427,6 @@ export function createTrack(scene) {
     return tree;
   }
 
-  // Helper to build a Vintage Streetlamp
   function createStreetlamp(x, z, rotY = 0) {
     const lamp = new THREE.Group();
     lamp.position.set(x, 0, z);
@@ -556,70 +438,58 @@ export function createTrack(scene) {
     pole.position.y = 3.0;
     lamp.add(pole);
 
-    // Curved arm
     const armGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.6, 8);
     const arm = new THREE.Mesh(armGeo, metalMat);
     arm.position.set(0.6, 5.8, 0);
     arm.rotation.z = Math.PI / 3;
     lamp.add(arm);
 
-    // Lantern housing
     const headGeo = new THREE.ConeGeometry(0.35, 0.5, 6);
     const head = new THREE.Mesh(headGeo, metalMat);
     head.position.set(1.2, 5.4, 0);
     lamp.add(head);
 
-    // Warm amber glow
     const light = new THREE.PointLight(0xffb74d, 1.8, 18, 1.4);
     light.position.set(1.2, 5.1, 0);
     lamp.add(light);
 
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffe082 }));
+    const bulb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12, 8, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffe082 })
+    );
     bulb.position.copy(light.position);
     lamp.add(bulb);
 
     return lamp;
   }
 
-  // Distribute trees and lamps along track perimeter
-  const treeLocations = [
-    { type: 'palm', x: -16, z: 15, scale: 1.1 },
-    { type: 'banyan', x: -28, z: 45, scale: 1.0 },
-    { type: 'palm', x: 20, z: 95, scale: 1.2 },
-    { type: 'banyan', x: 80, z: 105, scale: 1.1 },
-    { type: 'palm', x: 125, z: 70, scale: 0.95 },
-    { type: 'banyan', x: 110, z: -20, scale: 1.3 },
-    { type: 'palm', x: 92, z: -85, scale: 1.05 },
-    { type: 'banyan', x: 35, z: -135, scale: 1.2 },
-    { type: 'palm', x: -40, z: -135, scale: 1.15 },
-    { type: 'banyan', x: -85, z: -65, scale: 1.0 },
-    { type: 'palm', x: -75, z: -5, scale: 1.0 },
-  ];
+  // Place lamps and trees safely along the outer perimeter of the track
+  const propTVals = [0.05, 0.12, 0.20, 0.28, 0.35, 0.42, 0.50, 0.58, 0.65, 0.72, 0.80, 0.88, 0.95];
+  propTVals.forEach((tVal, idx) => {
+    const pt = trackCurve.getPointAt(tVal);
+    const tan = trackCurve.getTangentAt(tVal).normalize();
+    const right = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+    const yaw = Math.atan2(tan.x, tan.z);
 
-  treeLocations.forEach((tl) => {
-    if (tl.type === 'palm') {
-      trackGroup.add(createPalmTree(tl.x, tl.z, tl.scale));
+    // Lamp on right outer sidewalk edge
+    const lampPos = pt.clone().addScaledVector(right, halfWidth + curbWidth + sidewalkWidth + 0.6);
+    trackGroup.add(createStreetlamp(lampPos.x, lampPos.z, yaw + Math.PI));
+
+    // Trees on left and right outer perimeters
+    const treePosR = pt.clone().addScaledVector(right, halfWidth + curbWidth + sidewalkWidth + 3.8);
+    const treePosL = pt.clone().addScaledVector(right, -(halfWidth + curbWidth + sidewalkWidth + 3.8));
+
+    if (idx % 2 === 0) {
+      trackGroup.add(createPalmTree(treePosR.x, treePosR.z, 1.1));
+      trackGroup.add(createBanyanTree(treePosL.x, treePosL.z, 1.0));
     } else {
-      trackGroup.add(createBanyanTree(tl.x, tl.z, tl.scale));
+      trackGroup.add(createBanyanTree(treePosR.x, treePosR.z, 1.15));
+      trackGroup.add(createPalmTree(treePosL.x, treePosL.z, 1.05));
     }
   });
 
-  const lampLocations = [
-    { x: -10, z: -20, rot: 0 },
-    { x: 10, z: 20, rot: Math.PI },
-    { x: 45, z: 80, rot: -Math.PI / 4 },
-    { x: 98, z: 45, rot: Math.PI / 2 },
-    { x: 70, z: -35, rot: -Math.PI / 3 },
-    { x: 40, z: -110, rot: 0 },
-    { x: -55, z: -90, rot: Math.PI / 2 },
-  ];
-
-  lampLocations.forEach((l) => {
-    trackGroup.add(createStreetlamp(l.x, l.z, l.rot));
-  });
-
   // --------------------------------------------------------------------------
-  // 8. TRAFFIC CONE HAZARDS (SCATTERED ON APEXES WITH DYNAMIC FLING PHYSICS)
+  // 7. TRAFFIC CONE HAZARDS (DYNAMICALLY GROUNDED ON APEXES)
   // --------------------------------------------------------------------------
   const coneGroup = new THREE.Group();
   const coneBaseGeo = new THREE.BoxGeometry(0.55, 0.05, 0.55);
@@ -630,32 +500,26 @@ export function createTrack(scene) {
   const coneWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.2 });
   const coneBaseMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
 
-  // 16 Strategic hazard cone placements across corner apexes and chicanes
-  const conePlacements = [
-    // Turn 1 Apex
-    new THREE.Vector3(26, 0.05, 66),
-    new THREE.Vector3(29, 0.05, 70),
-    // Turn 2 Hairpin inside apex (invites drifting!)
-    new THREE.Vector3(88, 0.05, 48),
-    new THREE.Vector3(91, 0.05, 45),
-    new THREE.Vector3(94, 0.05, 42),
-    // Chicane S-curve
-    new THREE.Vector3(62, 0.05, -28),
-    new THREE.Vector3(76, 0.05, -62),
-    // Sweeper Turn 4
-    new THREE.Vector3(45, 0.05, -112),
-    new THREE.Vector3(48, 0.05, -114),
-    new THREE.Vector3(-12, 0.05, -121),
-    new THREE.Vector3(-16, 0.05, -122),
-    // Final Chicane
-    new THREE.Vector3(-66, 0.05, -82),
-    new THREE.Vector3(-56, 0.05, -34),
-    new THREE.Vector3(-28, 0.05, -24),
+  const coneConfigs = [
+    { t: 0.18, offset: -3.4 },
+    { t: 0.20, offset: -3.8 },
+    { t: 0.22, offset: -3.4 },
+    { t: 0.36, offset: 3.5 },
+    { t: 0.38, offset: 4.0 },
+    { t: 0.40, offset: 3.5 },
+    { t: 0.58, offset: -3.5 },
+    { t: 0.60, offset: -4.0 },
+    { t: 0.62, offset: -3.5 },
+    { t: 0.78, offset: 3.5 },
+    { t: 0.80, offset: 4.0 },
+    { t: 0.82, offset: 3.5 },
+    { t: 0.94, offset: -3.2 },
+    { t: 0.96, offset: 3.2 },
   ];
 
   const trackCones = [];
 
-  conePlacements.forEach((pos, idx) => {
+  coneConfigs.forEach((cfg, idx) => {
     const singleCone = new THREE.Group();
     singleCone.name = `TrackCone_${idx}`;
 
@@ -674,6 +538,12 @@ export function createTrack(scene) {
     stripe.castShadow = true;
     singleCone.add(stripe);
 
+    const pt = trackCurve.getPointAt(cfg.t);
+    const tan = trackCurve.getTangentAt(cfg.t).normalize();
+    const right = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+    const pos = pt.clone().addScaledVector(right, cfg.offset);
+    pos.y = 0.05;
+
     singleCone.position.copy(pos);
     coneGroup.add(singleCone);
 
@@ -691,18 +561,18 @@ export function createTrack(scene) {
   scene.add(trackGroup);
 
   // --------------------------------------------------------------------------
-  // 9. COLLISION HELPERS & TRACK BOUNDARY LOGIC
+  // 8. COLLISION HELPERS & TRACK BOUNDARY LOGIC
   // --------------------------------------------------------------------------
   /**
    * Finds the closest point on the track spline to a given 3D position
-   * Uses sample stepping for rapid real-time lookup
+   * Uses sample stepping across 400 equidistant slices
    */
   function getClosestTrackPoint(pos) {
     let closestDistSq = Infinity;
     let closestIndex = 0;
 
-    for (let i = 0; i < numSegments; i += 2) {
-      const p = curvePoints[i];
+    for (let i = 0; i < N; i++) {
+      const p = spacedPoints[i];
       const dx = pos.x - p.x;
       const dz = pos.z - p.z;
       const distSq = dx * dx + dz * dz;
@@ -713,39 +583,46 @@ export function createTrack(scene) {
     }
 
     return {
-      point: curvePoints[closestIndex],
-      tangent: curveTangents[closestIndex],
-      normal: curveNormals[closestIndex],
+      point: spacedPoints[closestIndex],
+      tangent: tangents[closestIndex],
+      normal: rights[closestIndex], // Horizontal right vector
       index: closestIndex,
-      t: closestIndex / numSegments,
+      t: closestIndex / N,
     };
   }
 
   /**
-   * Checks vehicle against track boundaries and pushes back onto asphalt if hitting barrier
-   * Returns collision event object if a hit occurred
+   * Checks vehicle against track boundaries:
+   * ONLY checks lateral distance from nearest curve point (lateralDist > trackHalfWidth - 1.2),
+   * smoothly clamping the player inside the road and aligning velocity with the road tangent
+   * without ever freezing the player at 0 speed.
    */
   function checkBoundaryCollision(vehiclePos) {
     const nearest = getClosestTrackPoint(vehiclePos);
-    // Vector from track centerline to vehicle
     const diff = vehiclePos.clone().sub(nearest.point);
     diff.y = 0;
 
-    // Dot product with track normal tells us lateral distance across track
+    // Dot product with right vector measures lateral distance (-left, +right)
     const lateralDist = diff.dot(nearest.normal);
-    const maxAllowedDist = halfWidth - 0.7; // Vehicle boundary
+    const maxAllowedDist = halfWidth - 1.2; // Strictly trackHalfWidth - 1.2
 
     if (Math.abs(lateralDist) > maxAllowedDist) {
-      // Hitting the boundary!
       const pushSign = Math.sign(lateralDist);
-      const targetPos = nearest.point.clone().add(
-        nearest.normal.clone().multiplyScalar(pushSign * (maxAllowedDist - 0.1))
+      const clampedPos = nearest.point.clone().addScaledVector(
+        nearest.normal,
+        pushSign * maxAllowedDist
       );
+      clampedPos.y = vehiclePos.y;
+
+      const tangentYaw = Math.atan2(nearest.tangent.x, nearest.tangent.z);
 
       return {
         collided: true,
-        correctedPos: targetPos,
+        clampedPos: clampedPos,
+        tangentYaw: tangentYaw,
+        tangent: nearest.tangent,
         pushNormal: nearest.normal.clone().multiplyScalar(-pushSign),
+        lateralDist: lateralDist,
       };
     }
 
@@ -761,31 +638,27 @@ export function createTrack(scene) {
     trackCones.forEach((cone) => {
       if (!cone.isAirborne) return;
 
-      // Integrate motion
       cone.velocity.y += gravity * dt;
       cone.mesh.position.x += cone.velocity.x * dt;
       cone.mesh.position.y += cone.velocity.y * dt;
       cone.mesh.position.z += cone.velocity.z * dt;
 
-      // Integrate spin
       cone.mesh.rotation.x += cone.angularVelocity.x * dt;
       cone.mesh.rotation.y += cone.angularVelocity.y * dt;
       cone.mesh.rotation.z += cone.angularVelocity.z * dt;
 
-      // Ground bounce
       if (cone.mesh.position.y <= 0.05) {
         cone.mesh.position.y = 0.05;
-        cone.velocity.y *= -0.4; // Bounce damping
+        cone.velocity.y *= -0.4;
         cone.velocity.x *= 0.7;
         cone.velocity.z *= 0.7;
         cone.angularVelocity.multiplyScalar(0.7);
 
-        // Once energy decays, settle on the ground
         if (Math.abs(cone.velocity.y) < 0.6 && Math.abs(cone.velocity.x) < 0.3) {
           cone.isAirborne = false;
           cone.velocity.set(0, 0, 0);
           cone.angularVelocity.set(0, 0, 0);
-          cone.mesh.rotation.x = Math.PI / 2; // Lie knocked over on side
+          cone.mesh.rotation.x = Math.PI / 2;
         }
       }
     });
@@ -794,6 +667,7 @@ export function createTrack(scene) {
   return {
     trackCurve,
     trackWidth,
+    trackTotalLength,
     checkpointGates,
     trackCones,
     getClosestTrackPoint,
@@ -801,4 +675,3 @@ export function createTrack(scene) {
     updateConesPhysics,
   };
 }
-

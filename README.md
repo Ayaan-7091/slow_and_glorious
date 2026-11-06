@@ -1,6 +1,6 @@
-# 🛺 Tuk-Tuk Runner - 3D Indian Street Circuit (Sprint 2)
+# 🛺 Tuk-Tuk Runner - Indian Bazaar Street Circuit (Sprint 4)
 
-An arcade 3D time-trial racing game prototype featuring an authentic Indian Auto-Rickshaw, built with **Vite** and **vanilla Three.js** (zero external physics engines and zero external 3D model files).
+An authentic 3D arcade time-trial & rival racing game featuring an iconic Indian Auto-Rickshaw, built with **Vite** and **vanilla Three.js** (zero external physics libraries and zero external 3D model files).
 
 ---
 
@@ -29,7 +29,7 @@ An arcade 3D time-trial racing game prototype featuring an authentic Indian Auto
 ### 💻 Desktop (Keyboard)
 | Key | Action |
 | :--- | :--- |
-| **W** or **↑ Up Arrow** | Accelerate (Gas) |
+| **W** or **↑ Up Arrow** | Accelerate (Gas / Rev engine) |
 | **S** or **↓ Down Arrow** | Brake / Reverse |
 | **A** / **D** or **←** / **→** | Steer Left / Right |
 | **SPACEBAR** | Power Drift (Slips wide & **charges the Nitro Boost Meter**) |
@@ -50,39 +50,36 @@ An arcade 3D time-trial racing game prototype featuring an authentic Indian Auto
 
 ---
 
-## 🏁 New Sprint 2 Upgrades
+## 🕌 What's New in Sprint 4: Indian Bazaar Overhaul
 
-### 1. Closed-Loop Indian Street Circuit (`src/createTrack.js`)
-- **Procedural Ribbon Geometry:** Uses `THREE.CatmullRomCurve3` to generate a 14m wide asphalt racing circuit with 5-6 corners (sweepers, technical chicanes, hairpins, and a main straight).
-- **Curbstones & Barriers:** Alternating red-and-white arcade curbstones on inner/outer edges with safety guardrail posts.
-- **Roadside Indian Props:**
-  - Colorful roadside **Chai Stalls ("Tapri")** with corrugated roofs, kettle, benches, and warm glowing lanterns.
-  - Stylized low-poly **Palm Trees**, **Banyan Trees**, and vintage **Streetlamps**.
-- **Hazard Cones with Dynamic Airborne Physics:** Cones placed on corner apexes; when struck, they fly high into the air with spinning angular momentum and bounce back down.
-- **Track Boundary Collision:** Bounces the rickshaw back onto the track and reduces speed when scraping barriers.
+### 1. Daylight Atmosphere, Sky Dome & Dusty Terrain (`src/createEnvironment.js`)
+- **Procedural Sky Dome:** Custom shader gradient transitioning from rich cerulean blue at the zenith down to warm golden-peach at the horizon.
+- **Glowing Sun Disc:** Bright afternoon sun with a golden corona.
+- **18 Low-Poly Puffy Clouds:** Soft 3D clouds drifting slowly across the sky.
+- **Warm Indian Earth:** Replaced the black grid with warm sandy-ochre dusty earth (`#d4a373`) and lush green patches (`#6a994e`).
+- **Crisp Medium-Gray Asphalt:** Textured road (`#3a3d45`) with razor-sharp white boundary lines and concrete curbstones.
 
-### 2. Checkpoints & Lap Timing System
-- **Gates:** 1 Grand Festive Indian Start/Finish Arch + 4 glowing cyan semi-transparent checkpoint gates.
-- **Anti-Cheat Sequential Order:** Tracks gate progression sequentially (Gate 0 -> 1 -> 2 -> 3 -> 4 -> 0).
-- **Dark-Glass HUD Widget:**
-  - `LAP: 1 / 3`
-  - `TIME: MM:SS.SS`
-  - `BEST: MM:SS.SS` (persisted in browser `localStorage`).
-- **Checkpoint Respawn:** Pressing `R` or tapping `Respawn` resets the rickshaw to the last passed checkpoint, facing forward along the track spline with zero speed.
+### 2. Dense Indian Bazaar Streetscape (`src/createBazaar.js`)
+- **36+ Multi-Story Indian Shop-Houses:** Handcrafted in Jaipur pink, turmeric yellow, terracotta, pastel blue, and mint green with balconies, parapets, and rooftop water tanks.
+- **Procedural Hindi/English Signboards (`CanvasTexture`):**
+  - "GARAM CHAI ☕ / ताजा कड़क चाय"
+  - "ROYAL SWEETS 🪔 / शुद्ध देशी घी मिठाई"
+  - "RAJU AUTO GARAGE 🔧 / ऑटो रिपेयर & स्पेयर"
+  - "BOLLYWOOD CINEMA 🎬 / सुपरहिट शो चालू है"
+  - "LASSI CORNER 🥛 / मलाई मार के लस्सी"
+  - "DELHI CHAT BHANDAR 🌶️ / तीखी गोलगप्पे & टिक्की"
+  - "BOMBAY SPICE MARKET 🍛 / खड़े मसाले"
+- **Storefront Fabric Awnings:** Striped fabric awnings over entrance doors.
+- **Overhead Festive Bunting & Fairy Lights:** Colorful triangular flags and glowing fairy light bulbs strung between wooden utility poles across the track at 4 scenic locations.
+- **Roadside Props:** Handcrafted wooden fruit carts with mounds of fresh mangoes, and painted concrete National Highway milestones ("NH-48").
 
-### 3. Drift-to-Boost ("Garam Chai Nitro") Mechanic
-- **Drift Charging:** Holding a drift around corners charges the Garam Chai Nitro meter up to 100%.
-- **Nitro Boost Activation:** Pressing **Shift** (or the mobile **⚡ NITRO** button) consumes nitro to:
-  - Increase top speed from 25 km/h to 38 km/h.
-  - Add +24 acceleration boost.
-  - Emit bright cyan/electric blue exhaust flame particles (`src/particles.js`).
-  - Dynamically widen the camera FOV from 55° to 72° using smooth `lerp` for high-speed sensation.
+### 3. Pre-Race Difficulty Selector Modal
+Choose your racing challenge before lights out (and re-selectable anytime via the HUD or post-race modal):
+- **EASY (Galli Cruiser):** Relaxed pace; AI top speed capped at 85% of player speed. Great for practicing drifts.
+- **MEDIUM (Bazaar Racer):** Competitive pace; AI matches player top speed (~92 km/h) with strategic boosts and lane-weaving.
+- **HARD (Meter Down Pro):** Fast & aggressive! AI hits 115% top speed (~104 km/h), takes tight inside lines, and uses frequent Nitro boosts with active rubber-banding to overtake!
 
-### 4. Synthesized Web Audio API (`src/audio.js`)
-*Zero external MP3s or WAV files needed!* Real-time synthesis:
-- **2-Stroke Engine Hum:** Sawtooth oscillator + low-pass filter dynamically pitch-shifting with speed and throttle.
-- **Iconic Double-Beep Horn:** Dual-tone (440Hz + 554Hz major 3rd) rapid-fire beep ("PEEP-PEEP!").
-- **Checkpoint & Lap Chimes:** Sparkling ascending musical arpeggios on gate pass and lap completion.
-- **Nitro Boost Ignition:** Ascending whoosh and combustion roar.
-- **Impact Sounds:** Hollow plastic impact for traffic cones and metallic crunch for barriers.
-- **Mute Toggle:** Click the top-right button or press `M`.
+### 4. High-Speed Competitive AI Rivals (`src/createRivals.js`)
+- **Real-World Acceleration Math:** Fixed acceleration math so AI rickshaws promptly accelerate up to full speed (75-100+ km/h) matching and challenging the player.
+- **AI Nitro Flame Exhaust:** Rivals emit glowing cyan exhaust flames when triggering their nitro boost bursts.
+- **Dynamic Arcade Rubber-Banding:** Keeps the pack tight, challenging, and thrilling all 3 laps!

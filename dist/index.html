@@ -6,9 +6,9 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>Tuk-Tuk Runner - 3D Indian Street Circuit</title>
-    <script type="module" crossorigin src="/assets/index-BNPH9Bx8.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BsyDJ1e9.css">
+    <title>Tuk-Tuk Runner - Indian Street Circuit (Sprint 3)</title>
+    <script type="module" crossorigin src="/assets/index-Bu9Hhjt7.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BwLJ1r7G.css">
   </head>
   <body>
     <!-- Three.js Canvas Container -->
@@ -22,7 +22,7 @@
           <span class="auto-icon">🛺</span>
           <div class="brand-text">
             <h1>TUK-TUK RUNNER</h1>
-            <span class="subtitle">Indian Street Circuit • Sprint 2</span>
+            <span class="subtitle">Indian Street Circuit • Sprint 3</span>
           </div>
         </div>
 
@@ -46,19 +46,29 @@
         </div>
       </div>
 
-      <!-- Center: Speedometer & Garam Chai Nitro Boost Cluster -->
+      <!-- Center: Speedometer, Live Position & Nitro Boost Cluster -->
       <div class="hud-center-group">
-        <div class="speedometer-cluster">
-          <div class="speed-box">
-            <span id="speed-value" class="digital-number">0</span>
-            <span class="speed-unit">KM/H</span>
+        <div class="speed-and-pos-row">
+          <!-- Position Badge (1st / 4) -->
+          <div class="pos-badge-cluster" id="pos-cluster">
+            <span class="pos-label">POS</span>
+            <span class="pos-number" id="pos-value">1st</span>
+            <span class="pos-total">/ 4</span>
           </div>
-          <div class="gear-box">
-            <span class="gear-label">GEAR</span>
-            <span id="gear-value" class="gear-display">N</span>
-          </div>
-          <div id="drift-badge" class="drift-badge">
-            DRIFT!
+
+          <!-- Speedometer -->
+          <div class="speedometer-cluster">
+            <div class="speed-box">
+              <span id="speed-value" class="digital-number">0</span>
+              <span class="speed-unit">KM/H</span>
+            </div>
+            <div class="gear-box">
+              <span class="gear-label">GEAR</span>
+              <span id="gear-value" class="gear-display">N</span>
+            </div>
+            <div id="drift-badge" class="drift-badge">
+              DRIFT!
+            </div>
           </div>
         </div>
 
@@ -74,8 +84,14 @@
         </div>
       </div>
 
-      <!-- Right: Action Buttons (Horn, Mute, Respawn) -->
+      <!-- Right: Action Buttons (Camera, Difficulty, Horn, Mute, Respawn) -->
       <div class="hud-actions">
+        <button id="btn-camera-view" class="hud-btn cam-hud-btn" title="Toggle Camera View (Key: C)">
+          📷 <span id="cam-hud-label">CHASE</span>
+        </button>
+        <button id="btn-difficulty-hud" class="hud-btn diff-hud-btn" title="Change Difficulty">
+          ⚡ <span id="diff-hud-label">MEDIUM</span>
+        </button>
         <button id="btn-horn-hud" class="hud-btn" title="Sound Horn (Key: H)">
           📯 Horn
         </button>
@@ -88,7 +104,72 @@
       </div>
     </header>
 
-    <!-- Checkpoint Notification Banner (Flashes when passing gates) -->
+    <!-- Minimap / Track Radar HUD -->
+    <div class="minimap-container" id="minimap-container">
+      <div class="minimap-header">RADAR</div>
+      <canvas id="minimap-canvas" width="150" height="150"></canvas>
+    </div>
+
+    <!-- Pre-Race Difficulty Selector Modal -->
+    <div id="difficulty-modal" class="difficulty-modal">
+      <div class="diff-card">
+        <span class="diff-icon">🏁</span>
+        <h2>SELECT DIFFICULTY</h2>
+        <p class="diff-subtitle">Choose your racing challenge before lights out!</p>
+
+        <div class="diff-options">
+          <!-- EASY -->
+          <button class="diff-option-btn easy" data-diff="EASY">
+            <div class="diff-option-header">
+              <span class="diff-badge green">EASY</span>
+              <span class="diff-name">GALLI CRUISER</span>
+            </div>
+            <p class="diff-desc">Relaxed pace. AI speeds capped at 85%. Great for practicing corners and power drifts.</p>
+            <div class="diff-stats">
+              <span>AI Speed: ~76 KM/H</span>
+              <span>Boosts: Rare</span>
+            </div>
+          </button>
+
+          <!-- MEDIUM -->
+          <button class="diff-option-btn medium selected" data-diff="MEDIUM">
+            <div class="diff-option-header">
+              <span class="diff-badge orange">MEDIUM</span>
+              <span class="diff-name">BAZAAR RACER</span>
+            </div>
+            <p class="diff-desc">Competitive pace. AI matches player top speed with strategic nitro boosts and lane-weaving.</p>
+            <div class="diff-stats">
+              <span>AI Speed: ~92 KM/H</span>
+              <span>Boosts: Occasional</span>
+            </div>
+          </button>
+
+          <!-- HARD -->
+          <button class="diff-option-btn hard" data-diff="HARD">
+            <div class="diff-option-header">
+              <span class="diff-badge red">HARD</span>
+              <span class="diff-name">METER DOWN PRO</span>
+            </div>
+            <p class="diff-desc">Fast & aggressive! AI hits 115% top speed, hugs inside lines, and uses frequent Nitro to overtake.</p>
+            <div class="diff-stats">
+              <span>AI Speed: ~104 KM/H</span>
+              <span>Boosts: Frequent 🔥</span>
+            </div>
+          </button>
+        </div>
+
+        <button id="btn-start-race" class="start-race-btn">
+          🚦 START RACE (CHALO!)
+        </button>
+      </div>
+    </div>
+
+    <!-- Center Screen Arcade Countdown (3... 2... 1... CHALO!) -->
+    <div id="countdown-overlay" class="countdown-overlay">
+      <div id="countdown-text" class="countdown-text">3</div>
+    </div>
+
+    <!-- Checkpoint Notification Banner -->
     <div id="checkpoint-banner" class="checkpoint-banner">
       CHECKPOINT CLEARED!
     </div>
@@ -98,7 +179,7 @@
       <div class="legend-header">🎮 CONTROLS</div>
       <div class="legend-row">
         <span class="key-pill">W</span> / <span class="key-pill">↑</span>
-        <span class="key-desc">Gas (Accelerate)</span>
+        <span class="key-desc">Gas (Accelerate / Rev)</span>
       </div>
       <div class="legend-row">
         <span class="key-pill">S</span> / <span class="key-pill">↓</span>
@@ -166,6 +247,41 @@
             GAS
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Sleek Race Finished Modal Overlay -->
+    <div id="finish-modal" class="finish-modal hidden">
+      <div class="finish-card">
+        <div class="finish-trophy" id="finish-trophy">🏆</div>
+        <h2 id="finish-title">RACE FINISHED!</h2>
+        <div class="finish-rank-badge" id="finish-rank-badge">1st PLACE</div>
+        
+        <div class="finish-stats-grid">
+          <div class="finish-stat">
+            <span class="f-label">TOTAL TIME</span>
+            <span class="f-val" id="finish-total-time">00:00.00</span>
+          </div>
+          <div class="finish-stat">
+            <span class="f-label">BEST LAP</span>
+            <span class="f-val" id="finish-best-lap">00:00.00</span>
+          </div>
+        </div>
+
+        <div class="finish-leaderboard">
+          <div class="lb-header">
+            <span>POS</span>
+            <span>RACER</span>
+            <span style="text-align: right;">STATUS</span>
+          </div>
+          <div class="lb-list" id="finish-leaderboard-list">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </div>
+
+        <button id="btn-restart-race" class="finish-btn">
+          🏁 RACE AGAIN
+        </button>
       </div>
     </div>
 

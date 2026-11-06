@@ -22,10 +22,15 @@ import * as THREE from 'three';
  * 
  * Returns an object containing the root group and references to animated parts.
  */
-export function createRickshaw() {
+export function createRickshaw(options = {}) {
+  // Configurable livery colors with iconic auto defaults
+  const bodyColor = options.bodyColor !== undefined ? options.bodyColor : 0xf5b000;
+  const trimColor = options.trimColor !== undefined ? options.trimColor : 0x0c6833;
+  const canopyColor = options.canopyColor !== undefined ? options.canopyColor : 0x1c1e21;
+
   // Root group placed at ground origin
   const rickshawGroup = new THREE.Group();
-  rickshawGroup.name = 'AutoRickshaw_Root';
+  rickshawGroup.name = options.name ? `AutoRickshaw_${options.name}` : 'AutoRickshaw_Root';
 
   // Tilt group: Tilts (lean on Z) during sharp turns and pitches (on X) during acceleration/braking
   const tiltGroup = new THREE.Group();
@@ -35,19 +40,14 @@ export function createRickshaw() {
   // -------------------------------------------------------------
   // SHARED MATERIALS
   // -------------------------------------------------------------
-  // Iconic Auto Rickshaw Colors:
-  // - Vibrant Indian Auto Yellow (#f7b318 / #ffb703)
-  // - Forest / Emerald Green lower trim (#0a5c2d)
-  // - Matte Charcoal Roof Canopy (#1f2124)
-  // - Semi-transparent tinted windshield glass
   const bodyYellowMat = new THREE.MeshStandardMaterial({
-    color: 0xf5b000,
+    color: bodyColor,
     roughness: 0.35,
     metalness: 0.1,
   });
 
   const trimGreenMat = new THREE.MeshStandardMaterial({
-    color: 0x0c6833,
+    color: trimColor,
     roughness: 0.4,
     metalness: 0.05,
   });
@@ -65,7 +65,7 @@ export function createRickshaw() {
   });
 
   const canopyMat = new THREE.MeshStandardMaterial({
-    color: 0x1c1e21,
+    color: canopyColor,
     roughness: 0.7,
     metalness: 0.05,
   });
